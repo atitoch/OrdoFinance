@@ -1,5 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../core/notifications/notification_service.dart';
 import '../../../core/state/resource_state.dart';
 import '../../../data/models/account.dart';
 import '../../../data/models/transaction.dart';
@@ -62,6 +63,20 @@ final currentBalanceProvider = Provider.family<int, String>((ref, accountId) {
   return account.balance + ref.watch(computedBalanceProvider(accountId));
 });
 
+// Advertencia de liquidez: true si activos líquidos < deuda total de crédito
+final liquidityWarningProvider = Provider<bool>((ref) {
+  final accounts = ref.watch(accountsListProvider);
+  const liquid = {AccountType.checking, AccountType.savings, AccountType.cash};
+  var liquidAssets = 0;
+  var creditDebt = 0;
+  for (final account in accounts.where((a) => a.isActive)) {
+    final balance = ref.watch(currentBalanceProvider(account.id));
+    if (liquid.contains(account.type)) liquidAssets += balance;
+    if (account.type == AccountType.credit) creditDebt += balance;
+  }
+  return creditDebt > 0 && liquidAssets < creditDebt;
+});
+
 // Patrimonio total: activos suman, crédito resta
 final netWorthProvider = Provider<int>((ref) {
   final accounts = ref.watch(accountsListProvider);
@@ -101,13 +116,15 @@ class AccountsNotifier extends StateNotifier<ResourceState<Account>> {
     );
     try {
       final created = await _repository.create(account);
-      state = state.copyWith(
+      final next = state.copyWith(
         items: [
           for (final item in state.items)
             if (item.id == account.id) created else item,
         ],
         isSyncing: false,
       );
+      state = next;
+      await NotificationService.scheduleForAccounts(next.items);
     } catch (error) {
       state = previous.copyWith(error: error);
     }
@@ -125,13 +142,15 @@ class AccountsNotifier extends StateNotifier<ResourceState<Account>> {
     );
     try {
       final updated = await _repository.update(account);
-      state = state.copyWith(
+      final next = state.copyWith(
         items: [
           for (final item in state.items)
             if (item.id == updated.id) updated else item,
         ],
         isSyncing: false,
       );
+      state = next;
+      await NotificationService.scheduleForAccounts(next.items);
     } catch (error) {
       state = previous.copyWith(error: error);
     }

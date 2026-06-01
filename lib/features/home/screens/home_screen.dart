@@ -92,6 +92,8 @@ class HomeScreen extends ConsumerWidget {
               ref.read(transactionsProvider.notifier).refresh();
             },
           ),
+          if (ref.watch(liquidityWarningProvider))
+            const _LiquidityWarningBanner(),
           Padding(
             padding: const EdgeInsets.fromLTRB(16, 20, 16, 12),
             child: Column(
@@ -377,6 +379,54 @@ class _Metric extends StatelessWidget {
           ),
         ),
       ],
+    );
+  }
+}
+
+class _LiquidityWarningBanner extends StatelessWidget {
+  const _LiquidityWarningBanner();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      margin: const EdgeInsets.fromLTRB(16, 16, 16, 0),
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: AppColors.expenseBg,
+        border: Border.all(color: AppColors.expense.withValues(alpha: 0.3)),
+        borderRadius: BorderRadius.circular(AppSpacing.radiusLg),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Icon(Icons.warning_amber_rounded, color: AppColors.expense, size: 18),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Acción desfavorable para tu salud económica',
+                  style: GoogleFonts.instrumentSans(
+                    color: AppColors.expense,
+                    fontSize: 13,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  'Tu liquidez disponible es menor que tu deuda en tarjetas. Considera reducir gastos o realizar un pago parcial.',
+                  style: GoogleFonts.instrumentSans(
+                    color: AppColors.expense,
+                    fontSize: 12,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
     );
   }
 }

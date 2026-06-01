@@ -34,6 +34,7 @@ class Account {
     required this.createdAt,
     this.color,
     this.icon,
+    this.cutDay,
   });
 
   @HiveField(0)
@@ -54,6 +55,8 @@ class Account {
   final bool isActive;
   @HiveField(8)
   final DateTime createdAt;
+  @HiveField(9)
+  final int? cutDay;
 
   factory Account.fromJson(Map<String, dynamic> json) {
     return Account(
@@ -66,6 +69,7 @@ class Account {
       icon: json['icon'] as String?,
       isActive: json['isActive'] as bool,
       createdAt: DateTime.parse(json['createdAt'] as String),
+      cutDay: json['cutDay'] as int?,
     );
   }
 
@@ -80,6 +84,7 @@ class Account {
       'icon': icon,
       'isActive': isActive,
       'createdAt': createdAt.toIso8601String(),
+      'cutDay': cutDay,
     };
   }
 
@@ -93,6 +98,7 @@ class Account {
     String? icon,
     bool? isActive,
     DateTime? createdAt,
+    Object? cutDay = _sentinel,
   }) {
     return Account(
       id: id ?? this.id,
@@ -104,6 +110,9 @@ class Account {
       icon: icon ?? this.icon,
       isActive: isActive ?? this.isActive,
       createdAt: createdAt ?? this.createdAt,
+      cutDay: cutDay == _sentinel ? this.cutDay : cutDay as int?,
     );
   }
 }
+
+const _sentinel = Object();

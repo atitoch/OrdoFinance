@@ -28,6 +28,7 @@ class _AccountFormSheetState extends ConsumerState<AccountFormSheet> {
   late AccountType _type;
   late String _currency;
   late String _color;
+  int? _cutDay;
   bool _isSubmitting = false;
   String? _nameError;
   String? _balanceError;
@@ -50,6 +51,7 @@ class _AccountFormSheetState extends ConsumerState<AccountFormSheet> {
     _type = account?.type ?? AccountType.checking;
     _currency = account?.currency ?? ref.read(settingsProvider).currency;
     _color = account?.color ?? _accountColors.first;
+    _cutDay = account?.cutDay;
   }
 
   @override
@@ -132,6 +134,13 @@ class _AccountFormSheetState extends ConsumerState<AccountFormSheet> {
                         fontWeight: FontWeight.w400,
                       ),
                     ),
+                    if (_type == AccountType.credit) ...[
+                      const SizedBox(height: 16),
+                      _CutDaySelector(
+                        selected: _cutDay,
+                        onChanged: (day) => setState(() => _cutDay = day),
+                      ),
+                    ],
                     const SizedBox(height: 16),
                     Wrap(
                       spacing: 12,
@@ -214,6 +223,7 @@ class _AccountFormSheetState extends ConsumerState<AccountFormSheet> {
       icon: widget.account?.icon,
       isActive: widget.account?.isActive ?? true,
       createdAt: widget.account?.createdAt ?? DateTime.now(),
+      cutDay: _type == AccountType.credit ? _cutDay : null,
     );
     final notifier = ref.read(accountsProvider.notifier);
     if (_isEditing) {
@@ -239,6 +249,78 @@ class _AccountFormSheetState extends ConsumerState<AccountFormSheet> {
     if (account == null) return;
     await ref.read(accountsProvider.notifier).archiveAccount(account.id);
     if (mounted) Navigator.of(context).pop();
+  }
+}
+
+class _CutDaySelector extends StatelessWidget {
+  const _CutDaySelector({required this.selected, required this.onChanged});
+
+  final int? selected;
+  final ValueChanged<int?> onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          'DÍA DE CORTE',
+          style: GoogleFonts.instrumentSans(
+            color: AppColors.gray400,
+            fontSize: 11,
+            fontWeight: FontWeight.w500,
+            letterSpacing: 0.66,
+          ),
+        ),
+        const SizedBox(height: 8),
+        SizedBox(
+          height: 36,
+          child: ListView.separated(
+            scrollDirection: Axis.horizontal,
+            itemCount: 28,
+            separatorBuilder: (_, __) => const SizedBox(width: 6),
+            itemBuilder: (context, index) {
+              final day = index + 1;
+              final isSelected = selected == day;
+              return GestureDetector(
+                onTap: () => onChanged(isSelected ? null : day),
+                child: AnimatedContainer(
+                  duration: const Duration(milliseconds: 120),
+                  width: 36,
+                  decoration: BoxDecoration(
+                    color: isSelected ? AppColors.gray900 : Colors.transparent,
+                    border: Border.all(
+                      color: isSelected ? AppColors.gray900 : AppColors.gray200,
+                    ),
+                    borderRadius: BorderRadius.circular(6),
+                  ),
+                  alignment: Alignment.center,
+                  child: Text(
+                    '$day',
+                    style: GoogleFonts.ibmPlexMono(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w500,
+                      color: isSelected ? AppColors.white : AppColors.gray600,
+                    ),
+                  ),
+                ),
+              );
+            },
+          ),
+        ),
+        if (selected != null)
+          Padding(
+            padding: const EdgeInsets.only(top: 6),
+            child: Text(
+              'Recibirás avisos 15, 7 y 1 día antes del corte.',
+              style: GoogleFonts.instrumentSans(
+                color: AppColors.gray400,
+                fontSize: 11,
+              ),
+            ),
+          ),
+      ],
+    );
   }
 }
 
