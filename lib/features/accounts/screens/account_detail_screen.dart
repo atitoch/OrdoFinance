@@ -44,6 +44,7 @@ class AccountDetailScreen extends ConsumerWidget {
           ..sort((a, b) => b.date.compareTo(a.date));
     final lastDate = transactions.firstOrNull?.date;
     final currentBalance = ref.watch(currentBalanceProvider(accountId));
+    final isCredit = account.type == AccountType.credit;
 
     return Scaffold(
       backgroundColor: AppColors.gray50,
@@ -76,10 +77,12 @@ class AccountDetailScreen extends ConsumerWidget {
                 _AccountTypeChip(type: account.type),
                 const SizedBox(height: 12),
                 Text(
-                  formatAmount(currentBalance, account.currency),
+                  isCredit
+                      ? '-${formatAmount(currentBalance, account.currency)}'
+                      : formatAmount(currentBalance, account.currency),
                   textAlign: TextAlign.center,
                   style: GoogleFonts.ibmPlexMono(
-                    color: AppColors.gray900,
+                    color: isCredit ? AppColors.expense : AppColors.gray900,
                     fontSize: 36,
                     fontWeight: FontWeight.w600,
                   ),

@@ -26,10 +26,10 @@ class AccountListScreen extends ConsumerWidget {
         .where((account) => account.isActive)
         .toList();
     final currency = activeAccounts.firstOrNull?.currency ?? 'USD';
-    final total = activeAccounts.fold<int>(
-      0,
-      (sum, account) => sum + ref.watch(currentBalanceProvider(account.id)),
-    );
+    final total = activeAccounts.fold<int>(0, (sum, account) {
+      final balance = ref.watch(currentBalanceProvider(account.id));
+      return account.type == AccountType.credit ? sum - balance : sum + balance;
+    });
 
     return Scaffold(
       backgroundColor: AppColors.gray50,
@@ -142,6 +142,7 @@ class _AccountListTile extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final color = parseCategoryColor(account.color ?? '#18181B');
     final balance = ref.watch(currentBalanceProvider(account.id));
+    final isCredit = account.type == AccountType.credit;
 
     return InkWell(
       onTap: onTap,
@@ -194,9 +195,11 @@ class _AccountListTile extends ConsumerWidget {
               crossAxisAlignment: CrossAxisAlignment.end,
               children: [
                 Text(
-                  formatAmount(balance, account.currency),
+                  isCredit
+                      ? '-${formatAmount(balance, account.currency)}'
+                      : formatAmount(balance, account.currency),
                   style: GoogleFonts.ibmPlexMono(
-                    color: AppColors.gray900,
+                    color: isCredit ? AppColors.expense : AppColors.gray900,
                     fontSize: 16,
                     fontWeight: FontWeight.w600,
                   ),

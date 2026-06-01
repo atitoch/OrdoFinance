@@ -21,23 +21,34 @@ final accountsListProvider = Provider<List<Account>>((ref) {
 });
 
 final computedBalanceProvider = Provider.family<int, String>((ref, accountId) {
+  final accounts = ref.watch(accountsListProvider);
+  final isCredit =
+      accounts.where((a) => a.id == accountId).firstOrNull?.type ==
+      AccountType.credit;
   final transactions = ref.watch(transactionsListProvider);
-  var balance = 0;
+  var delta = 0;
   for (final tx in transactions) {
     switch (tx.type) {
       case TransactionType.income:
-        if (tx.accountId == accountId) balance += tx.amount;
+        if (tx.accountId == accountId) {
+          // Pago a crédito reduce deuda; ingreso en activo aumenta saldo
+          delta += isCredit ? -tx.amount : tx.amount;
+        }
       case TransactionType.expense:
-        if (tx.accountId == accountId) balance -= tx.amount;
+        if (tx.accountId == accountId) {
+          // Gasto en crédito aumenta deuda; gasto en activo reduce saldo
+          delta += isCredit ? tx.amount : -tx.amount;
+        }
       case TransactionType.transfer:
-        if (tx.accountId == accountId) balance -= tx.amount;
-        if (tx.toAccountId == accountId) balance += tx.amount;
+        if (tx.accountId == accountId) delta -= tx.amount;
+        if (tx.toAccountId == accountId) delta += tx.amount;
     }
   }
-  return balance;
+  return delta;
 });
 
-// Saldo actual = saldo inicial + delta de transacciones
+// Para crédito: deuda actual (positivo = cuánto debes)
+// Para activos: saldo actual (positivo = cuánto tienes)
 final currentBalanceProvider = Provider.family<int, String>((ref, accountId) {
   final accounts = ref.watch(accountsListProvider);
   final account = accounts.where((a) => a.id == accountId).firstOrNull;
@@ -45,13 +56,13 @@ final currentBalanceProvider = Provider.family<int, String>((ref, accountId) {
   return account.balance + ref.watch(computedBalanceProvider(accountId));
 });
 
-// Patrimonio total reactivo
+// Patrimonio total: activos suman, crédito resta
 final netWorthProvider = Provider<int>((ref) {
   final accounts = ref.watch(accountsListProvider);
-  return accounts.fold<int>(
-    0,
-    (sum, account) => sum + ref.watch(currentBalanceProvider(account.id)),
-  );
+  return accounts.fold<int>(0, (sum, account) {
+    final balance = ref.watch(currentBalanceProvider(account.id));
+    return account.type == AccountType.credit ? sum - balance : sum + balance;
+  });
 });
 
 class AccountsNotifier extends StateNotifier<ResourceState<Account>> {

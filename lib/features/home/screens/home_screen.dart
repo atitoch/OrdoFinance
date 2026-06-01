@@ -246,6 +246,7 @@ class _AccountCard extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final color = parseCategoryColor(account.color ?? '#18181B');
     final balance = ref.watch(currentBalanceProvider(account.id));
+    final isCredit = account.type == AccountType.credit;
     return Container(
       width: 168,
       padding: const EdgeInsets.all(16),
@@ -273,9 +274,9 @@ class _AccountCard extends ConsumerWidget {
           ),
           const SizedBox(height: 4),
           Text(
-            formatAmount(balance, account.currency),
+            isCredit ? '-${formatAmount(balance, account.currency)}' : formatAmount(balance, account.currency),
             style: GoogleFonts.ibmPlexMono(
-              color: AppColors.gray900,
+              color: isCredit ? AppColors.expense : AppColors.gray900,
               fontSize: 15,
               fontWeight: FontWeight.w600,
             ),

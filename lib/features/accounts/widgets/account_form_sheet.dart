@@ -115,14 +115,17 @@ class _AccountFormSheetState extends ConsumerState<AccountFormSheet> {
                           setState(() => _currency = value ?? _currency),
                     ),
                     OrdoTextField(
-                      label: 'SALDO ACTUAL',
+                      label: _type == AccountType.credit
+                          ? 'DEUDA ACTUAL'
+                          : 'SALDO ACTUAL',
                       controller: _balanceController,
                       errorText: _balanceError,
                       keyboardType: TextInputType.number,
                       inputFormatters: [FilteringTextInputFormatter.digitsOnly],
                       onChanged: (_) => setState(() => _balanceError = null),
-                      helperText:
-                          'Ingresa tu saldo actual para comenzar a registrar desde hoy.',
+                      helperText: _type == AccountType.credit
+                          ? 'Ingresa cuánto debes actualmente en esta tarjeta.'
+                          : 'Ingresa tu saldo actual para comenzar a registrar desde hoy.',
                       textStyle: GoogleFonts.ibmPlexMono(
                         color: AppColors.gray900,
                         fontSize: 14,
