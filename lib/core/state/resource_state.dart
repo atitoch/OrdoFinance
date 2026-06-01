@@ -1,5 +1,7 @@
 import 'package:flutter/foundation.dart';
 
+typedef ResourceStatus = ({bool isLoading, bool isSyncing, Object? error});
+
 @immutable
 class ResourceState<T> {
   const ResourceState({
@@ -18,6 +20,9 @@ class ResourceState<T> {
 
   bool get hasError => error != null;
   bool get isEmpty => items.isEmpty;
+
+  ResourceStatus get status =>
+      (isLoading: isLoading, isSyncing: isSyncing, error: error);
 
   ResourceState<T> copyWith({
     List<T>? items,

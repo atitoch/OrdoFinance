@@ -20,7 +20,7 @@ class AccountListScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final accountsState = ref.watch(accountsProvider);
+    final accountsStatus = ref.watch(accountsProvider.select((s) => s.status));
     final accounts = ref.watch(accountsListProvider);
     final activeAccounts = accounts
         .where((account) => account.isActive)
@@ -45,9 +45,9 @@ class AccountListScreen extends ConsumerWidget {
       body: ListView(
         children: [
           ResourceStatusBanner(
-            isLoading: accountsState.isLoading,
-            isSyncing: accountsState.isSyncing,
-            error: accountsState.error,
+            isLoading: accountsStatus.isLoading,
+            isSyncing: accountsStatus.isSyncing,
+            error: accountsStatus.error,
             onRetry: () => ref.read(accountsProvider.notifier).refresh(),
           ),
           Container(
@@ -85,7 +85,7 @@ class AccountListScreen extends ConsumerWidget {
             padding: EdgeInsets.symmetric(horizontal: 16),
             child: SectionLabel('MIS CUENTAS'),
           ),
-          if (accountsState.isLoading && activeAccounts.isEmpty)
+          if (accountsStatus.isLoading && activeAccounts.isEmpty)
             const Padding(
               padding: EdgeInsets.symmetric(horizontal: 16),
               child: Column(

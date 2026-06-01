@@ -23,9 +23,9 @@ class HomeScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final accountsState = ref.watch(accountsProvider);
-    final categoriesState = ref.watch(categoriesProvider);
-    final transactionsState = ref.watch(transactionsProvider);
+    final accountsStatus = ref.watch(accountsProvider.select((s) => s.status));
+    final categoriesStatus = ref.watch(categoriesProvider.select((s) => s.status));
+    final transactionsStatus = ref.watch(transactionsProvider.select((s) => s.status));
     final accounts = ref.watch(accountsListProvider);
     final categories = ref.watch(categoriesListProvider);
     final transactions = ref.watch(transactionsListProvider);
@@ -74,18 +74,9 @@ class HomeScreen extends ConsumerWidget {
         padding: const EdgeInsets.only(bottom: 24),
         children: [
           ResourceStatusBanner(
-            isLoading:
-                accountsState.isLoading ||
-                categoriesState.isLoading ||
-                transactionsState.isLoading,
-            isSyncing:
-                accountsState.isSyncing ||
-                categoriesState.isSyncing ||
-                transactionsState.isSyncing,
-            error:
-                accountsState.error ??
-                categoriesState.error ??
-                transactionsState.error,
+            isLoading: accountsStatus.isLoading || categoriesStatus.isLoading || transactionsStatus.isLoading,
+            isSyncing: accountsStatus.isSyncing || categoriesStatus.isSyncing || transactionsStatus.isSyncing,
+            error: accountsStatus.error ?? categoriesStatus.error ?? transactionsStatus.error,
             onRetry: () {
               ref.read(accountsProvider.notifier).refresh();
               ref.read(categoriesProvider.notifier).refresh();
@@ -119,7 +110,7 @@ class HomeScreen extends ConsumerWidget {
               ],
             ),
           ),
-          if (accountsState.isLoading && accounts.isEmpty)
+          if (accountsStatus.isLoading && accounts.isEmpty)
             const _AccountCardSkeletons()
           else if (accounts.isEmpty)
             Padding(
@@ -163,7 +154,7 @@ class HomeScreen extends ConsumerWidget {
             padding: EdgeInsets.symmetric(horizontal: 16),
             child: SectionLabel('RECIENTES'),
           ),
-          if (transactionsState.isLoading && recent.isEmpty)
+          if (transactionsStatus.isLoading && recent.isEmpty)
             const _RecentSkeletons()
           else if (recent.isEmpty)
             const EmptyState(

@@ -21,7 +21,7 @@ final transactionsListProvider = Provider<List<Transaction>>((ref) {
 });
 
 final transactionsByMonthProvider =
-    Provider.family<List<Transaction>, (int, int)>((ref, yearMonth) {
+    Provider.autoDispose.family<List<Transaction>, (int, int)>((ref, yearMonth) {
       final (year, month) = yearMonth;
       return ref.watch(transactionsListProvider).where((t) {
         return t.date.year == year && t.date.month == month;
@@ -29,7 +29,7 @@ final transactionsByMonthProvider =
     });
 
 final transactionsByAccountProvider =
-    Provider.family<List<Transaction>, String>((ref, accountId) {
+    Provider.autoDispose.family<List<Transaction>, String>((ref, accountId) {
       return ref.watch(transactionsListProvider).where((t) {
         return t.accountId == accountId || t.toAccountId == accountId;
       }).toList();

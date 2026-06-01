@@ -32,7 +32,7 @@ class _TransactionListScreenState extends ConsumerState<TransactionListScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final transactionsState = ref.watch(transactionsProvider);
+    final transactionsStatus = ref.watch(transactionsProvider.select((s) => s.status));
     final accounts = ref.watch(accountsListProvider)
         .where((a) => a.isActive)
         .toList();
@@ -63,9 +63,9 @@ class _TransactionListScreenState extends ConsumerState<TransactionListScreen> {
       body: Column(
         children: [
           ResourceStatusBanner(
-            isLoading: transactionsState.isLoading,
-            isSyncing: transactionsState.isSyncing,
-            error: transactionsState.error,
+            isLoading: transactionsStatus.isLoading,
+            isSyncing: transactionsStatus.isSyncing,
+            error: transactionsStatus.error,
             onRetry: () => ref.read(transactionsProvider.notifier).refresh(),
           ),
           _MonthSelectorBar(
@@ -91,7 +91,7 @@ class _TransactionListScreenState extends ConsumerState<TransactionListScreen> {
               onSelected: (id) => setState(() => _selectedAccountId = id),
             ),
           Expanded(
-            child: transactionsState.isLoading && transactions.isEmpty
+            child: transactionsStatus.isLoading && transactions.isEmpty
                 ? const _TransactionListSkeleton()
                 : transactions.isEmpty
                 ? const _EmptyTransactions()

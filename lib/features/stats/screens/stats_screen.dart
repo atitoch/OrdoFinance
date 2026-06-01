@@ -36,8 +36,8 @@ class _StatsScreenState extends ConsumerState<StatsScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final transactionsState = ref.watch(transactionsProvider);
-    final categoriesState = ref.watch(categoriesProvider);
+    final transactionsStatus = ref.watch(transactionsProvider.select((s) => s.status));
+    final categoriesStatus = ref.watch(categoriesProvider.select((s) => s.status));
     final transactions = ref.watch(transactionsListProvider);
     final categories = ref.watch(categoriesListProvider);
     final monthTransactions = transactions
@@ -57,9 +57,9 @@ class _StatsScreenState extends ConsumerState<StatsScreen> {
         padding: const EdgeInsets.only(bottom: 24),
         children: [
           ResourceStatusBanner(
-            isLoading: transactionsState.isLoading || categoriesState.isLoading,
-            isSyncing: transactionsState.isSyncing || categoriesState.isSyncing,
-            error: transactionsState.error ?? categoriesState.error,
+            isLoading: transactionsStatus.isLoading || categoriesStatus.isLoading,
+            isSyncing: transactionsStatus.isSyncing || categoriesStatus.isSyncing,
+            error: transactionsStatus.error ?? categoriesStatus.error,
             onRetry: () {
               ref.read(transactionsProvider.notifier).refresh();
               ref.read(categoriesProvider.notifier).refresh();
@@ -111,7 +111,7 @@ class _StatsScreenState extends ConsumerState<StatsScreen> {
             padding: EdgeInsets.symmetric(horizontal: 16),
             child: SectionLabel('POR CATEGORÍA'),
           ),
-          if (transactionsState.isLoading && breakdown.isEmpty)
+          if (transactionsStatus.isLoading && breakdown.isEmpty)
             const Padding(
               padding: EdgeInsets.symmetric(horizontal: 16),
               child: Column(
@@ -143,7 +143,7 @@ class _StatsScreenState extends ConsumerState<StatsScreen> {
               height: 190,
               padding: const EdgeInsets.fromLTRB(8, 16, 8, 8),
               color: AppColors.white,
-              child: transactionsState.isLoading && transactions.isEmpty
+              child: transactionsStatus.isLoading && transactions.isEmpty
                   ? const Center(
                       child: CircularProgressIndicator(
                         color: AppColors.gray900,
@@ -156,7 +156,7 @@ class _StatsScreenState extends ConsumerState<StatsScreen> {
                       subtitle: 'Agrega movimientos para ver la tendencia mensual.',
                       compact: true,
                     )
-                  : LineChart(_trendData(transactions)),
+                  : RepaintBoundary(child: LineChart(_trendData(transactions))),
             ),
           ),
         ],

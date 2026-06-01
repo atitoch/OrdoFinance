@@ -24,8 +24,8 @@ class AccountDetailScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final accountsState = ref.watch(accountsProvider);
-    final transactionsState = ref.watch(transactionsProvider);
+    final accountsStatus = ref.watch(accountsProvider.select((s) => s.status));
+    final transactionsStatus = ref.watch(transactionsProvider.select((s) => s.status));
     final accounts = ref.watch(accountsListProvider);
     final account = accounts.firstWhereOrNull((item) => item.id == accountId);
     if (account == null) {
@@ -60,9 +60,9 @@ class AccountDetailScreen extends ConsumerWidget {
       body: Column(
         children: [
           ResourceStatusBanner(
-            isLoading: accountsState.isLoading || transactionsState.isLoading,
-            isSyncing: accountsState.isSyncing || transactionsState.isSyncing,
-            error: accountsState.error ?? transactionsState.error,
+            isLoading: accountsStatus.isLoading || transactionsStatus.isLoading,
+            isSyncing: accountsStatus.isSyncing || transactionsStatus.isSyncing,
+            error: accountsStatus.error ?? transactionsStatus.error,
             onRetry: () {
               ref.read(accountsProvider.notifier).refresh();
               ref.read(transactionsProvider.notifier).refresh();
@@ -124,7 +124,7 @@ class AccountDetailScreen extends ConsumerWidget {
             ),
           ),
           Expanded(
-            child: transactionsState.isLoading && transactions.isEmpty
+            child: transactionsStatus.isLoading && transactions.isEmpty
                 ? const Padding(
                     padding: EdgeInsets.all(16),
                     child: Column(

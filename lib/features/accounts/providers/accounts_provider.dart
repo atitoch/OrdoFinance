@@ -21,7 +21,7 @@ final accountsListProvider = Provider<List<Account>>((ref) {
   return ref.watch(accountsProvider).items;
 });
 
-final computedBalanceProvider = Provider.family<int, String>((ref, accountId) {
+final computedBalanceProvider = Provider.autoDispose.family<int, String>((ref, accountId) {
   final accounts = ref.watch(accountsListProvider);
   final isCredit =
       accounts.where((a) => a.id == accountId).firstOrNull?.type ==
@@ -56,7 +56,7 @@ final computedBalanceProvider = Provider.family<int, String>((ref, accountId) {
 
 // Para crédito: deuda actual (positivo = cuánto debes)
 // Para activos: saldo actual (positivo = cuánto tienes)
-final currentBalanceProvider = Provider.family<int, String>((ref, accountId) {
+final currentBalanceProvider = Provider.autoDispose.family<int, String>((ref, accountId) {
   final accounts = ref.watch(accountsListProvider);
   final account = accounts.where((a) => a.id == accountId).firstOrNull;
   if (account == null) return 0;
