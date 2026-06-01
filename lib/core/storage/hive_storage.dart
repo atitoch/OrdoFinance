@@ -20,6 +20,7 @@ abstract final class HiveStorage {
       Hive.openBox<Account>('accounts'),
       Hive.openBox<Category>('categories'),
       Hive.openBox<dynamic>('ordo_pending_operations'),
+      Hive.openBox<String>('settings'),
     ]);
   }
 }

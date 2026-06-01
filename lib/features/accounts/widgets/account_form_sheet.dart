@@ -10,6 +10,7 @@ import '../../../data/models/account.dart';
 import '../../../shared/widgets/category_icon.dart';
 import '../../../shared/widgets/ordo_button.dart';
 import '../../../shared/widgets/ordo_text_field.dart';
+import '../../settings/providers/settings_provider.dart';
 import '../providers/accounts_provider.dart';
 
 class AccountFormSheet extends ConsumerStatefulWidget {
@@ -47,7 +48,7 @@ class _AccountFormSheetState extends ConsumerState<AccountFormSheet> {
       text: account == null ? '' : (account.balance ~/ 100).toString(),
     );
     _type = account?.type ?? AccountType.checking;
-    _currency = account?.currency ?? 'USD';
+    _currency = account?.currency ?? ref.read(settingsProvider).currency;
     _color = account?.color ?? _accountColors.first;
   }
 
@@ -94,37 +95,9 @@ class _AccountFormSheetState extends ConsumerState<AccountFormSheet> {
                       onChanged: (_) => setState(() => _nameError = null),
                     ),
                     const SizedBox(height: 16),
-                    SizedBox(
-                      width: double.infinity,
-                      child: SegmentedButton<AccountType>(
-                        showSelectedIcon: false,
-                        segments: const [
-                          ButtonSegment(
-                            value: AccountType.checking,
-                            label: Text('Corriente'),
-                          ),
-                          ButtonSegment(
-                            value: AccountType.savings,
-                            label: Text('Ahorro'),
-                          ),
-                          ButtonSegment(
-                            value: AccountType.cash,
-                            label: Text('Efectivo'),
-                          ),
-                          ButtonSegment(
-                            value: AccountType.credit,
-                            label: Text('Crédito'),
-                          ),
-                          ButtonSegment(
-                            value: AccountType.investment,
-                            label: Text('Inversión'),
-                          ),
-                        ],
-                        selected: {_type},
-                        onSelectionChanged: (selection) {
-                          setState(() => _type = selection.first);
-                        },
-                      ),
+                    _AccountTypeSelector(
+                      selected: _type,
+                      onChanged: (type) => setState(() => _type = type),
                     ),
                     const SizedBox(height: 16),
                     DropdownButtonFormField<String>(
@@ -263,6 +236,65 @@ class _AccountFormSheetState extends ConsumerState<AccountFormSheet> {
     if (account == null) return;
     await ref.read(accountsProvider.notifier).archiveAccount(account.id);
     if (mounted) Navigator.of(context).pop();
+  }
+}
+
+class _AccountTypeSelector extends StatelessWidget {
+  const _AccountTypeSelector({required this.selected, required this.onChanged});
+
+  final AccountType selected;
+  final ValueChanged<AccountType> onChanged;
+
+  static const _types = [
+    (type: AccountType.checking, label: 'Corriente', icon: Icons.account_balance_outlined),
+    (type: AccountType.savings, label: 'Ahorro', icon: Icons.savings_outlined),
+    (type: AccountType.cash, label: 'Efectivo', icon: Icons.payments_outlined),
+    (type: AccountType.credit, label: 'Crédito', icon: Icons.credit_card),
+    (type: AccountType.investment, label: 'Inversión', icon: Icons.show_chart),
+  ];
+
+  @override
+  Widget build(BuildContext context) {
+    return Wrap(
+      spacing: 8,
+      runSpacing: 8,
+      children: _types.map((item) {
+        final isSelected = selected == item.type;
+        return GestureDetector(
+          onTap: () => onChanged(item.type),
+          child: AnimatedContainer(
+            duration: const Duration(milliseconds: 140),
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+            decoration: BoxDecoration(
+              color: isSelected ? AppColors.gray900 : AppColors.white,
+              border: Border.all(
+                color: isSelected ? AppColors.gray900 : AppColors.gray200,
+              ),
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(
+                  item.icon,
+                  size: 16,
+                  color: isSelected ? AppColors.white : AppColors.gray500,
+                ),
+                const SizedBox(width: 6),
+                Text(
+                  item.label,
+                  style: GoogleFonts.instrumentSans(
+                    fontSize: 13,
+                    fontWeight: isSelected ? FontWeight.w600 : FontWeight.w400,
+                    color: isSelected ? AppColors.white : AppColors.gray700,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+      }).toList(),
+    );
   }
 }
 
