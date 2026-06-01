@@ -26,7 +26,7 @@ class SettingsScreen extends ConsumerWidget {
           const SectionLabel('CUENTAS'),
           _SettingsRow(
             label: 'Administrar cuentas',
-            onTap: () => context.go('/accounts'),
+            onTap: () => context.push('/accounts'),
           ),
           _SettingsRow(
             label: '+ Agregar cuenta',
@@ -35,7 +35,7 @@ class SettingsScreen extends ConsumerWidget {
           const SectionLabel('CATEGORÍAS'),
           _SettingsRow(
             label: 'Administrar categorías',
-            onTap: () => context.go('/categories'),
+            onTap: () => context.push('/categories'),
           ),
           const SectionLabel('PREFERENCIAS'),
           _SettingsRow(

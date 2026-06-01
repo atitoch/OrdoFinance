@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 import '../../../core/theme/app_colors.dart';
@@ -26,7 +27,7 @@ class CategoriesScreen extends ConsumerWidget {
           title: 'Categorías',
           leading: IconButton(
             icon: const Icon(Icons.arrow_back, color: AppColors.gray900),
-            onPressed: () => Navigator.of(context).pop(),
+            onPressed: () => context.pop(),
           ),
           actions: [
             IconButton(

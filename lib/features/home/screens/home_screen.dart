@@ -130,7 +130,7 @@ class HomeScreen extends ConsumerWidget {
                 action: SizedBox(
                   width: 180,
                   child: OutlinedButton(
-                    onPressed: () => context.go('/accounts'),
+                    onPressed: () => context.push('/accounts'),
                     child: const Text('Administrar cuentas'),
                   ),
                 ),
