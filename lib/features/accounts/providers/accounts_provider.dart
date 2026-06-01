@@ -40,8 +40,14 @@ final computedBalanceProvider = Provider.family<int, String>((ref, accountId) {
           delta += isCredit ? tx.amount : -tx.amount;
         }
       case TransactionType.transfer:
-        if (tx.accountId == accountId) delta -= tx.amount;
-        if (tx.toAccountId == accountId) delta += tx.amount;
+        if (tx.accountId == accountId) {
+          // Sale dinero: activo disminuye, crédito aumenta deuda
+          delta += isCredit ? tx.amount : -tx.amount;
+        }
+        if (tx.toAccountId == accountId) {
+          // Llega dinero: activo aumenta, crédito reduce deuda (pago)
+          delta += isCredit ? -tx.amount : tx.amount;
+        }
     }
   }
   return delta;
