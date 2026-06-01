@@ -56,7 +56,7 @@ class _TransactionListScreenState extends ConsumerState<TransactionListScreen> {
         actions: [
           IconButton(
             icon: const Icon(Icons.search, color: AppColors.gray900),
-            onPressed: () => context.go('/search'),
+            onPressed: () => context.push('/search'),
           ),
         ],
       ),
