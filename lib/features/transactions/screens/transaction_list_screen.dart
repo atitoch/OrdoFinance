@@ -5,6 +5,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:intl/intl.dart';
 
 import '../../../core/theme/app_colors.dart';
+import '../../../data/models/account.dart';
 import '../../../data/models/transaction.dart';
 import '../../../shared/widgets/empty_state.dart';
 import '../../../shared/widgets/ordo_app_bar.dart';
@@ -27,18 +28,23 @@ class TransactionListScreen extends ConsumerStatefulWidget {
 
 class _TransactionListScreenState extends ConsumerState<TransactionListScreen> {
   DateTime _selectedMonth = DateTime(DateTime.now().year, DateTime.now().month);
+  late String? _selectedAccountId = widget.accountId;
 
   @override
   Widget build(BuildContext context) {
     final transactionsState = ref.watch(transactionsProvider);
-    final accounts = ref.watch(accountsListProvider);
+    final accounts = ref.watch(accountsListProvider)
+        .where((a) => a.isActive)
+        .toList();
     final categories = ref.watch(categoriesListProvider);
     final transactions = ref.watch(transactionsListProvider).where((tx) {
       final matchesMonth =
           tx.date.year == _selectedMonth.year &&
           tx.date.month == _selectedMonth.month;
       final matchesAccount =
-          widget.accountId == null || tx.accountId == widget.accountId;
+          _selectedAccountId == null ||
+          tx.accountId == _selectedAccountId ||
+          tx.toAccountId == _selectedAccountId;
       return matchesMonth && matchesAccount;
     }).toList()..sort((a, b) => b.date.compareTo(a.date));
     final groups = _groupByDate(transactions);
@@ -78,6 +84,12 @@ class _TransactionListScreenState extends ConsumerState<TransactionListScreen> {
             ),
             onPick: _showMonthPicker,
           ),
+          if (accounts.isNotEmpty)
+            _AccountFilterBar(
+              accounts: accounts,
+              selectedAccountId: _selectedAccountId,
+              onSelected: (id) => setState(() => _selectedAccountId = id),
+            ),
           Expanded(
             child: transactionsState.isLoading && transactions.isEmpty
                 ? const _TransactionListSkeleton()
@@ -158,6 +170,91 @@ class _TransactionListScreenState extends ConsumerState<TransactionListScreen> {
       useSafeArea: true,
       backgroundColor: Colors.transparent,
       builder: (context) => const AddTransactionSheet(),
+    );
+  }
+}
+
+class _AccountFilterBar extends StatelessWidget {
+  const _AccountFilterBar({
+    required this.accounts,
+    required this.selectedAccountId,
+    required this.onSelected,
+  });
+
+  final List<Account> accounts;
+  final String? selectedAccountId;
+  final ValueChanged<String?> onSelected;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      height: 44,
+      decoration: const BoxDecoration(
+        color: AppColors.white,
+        border: Border(bottom: BorderSide(color: AppColors.gray200)),
+      ),
+      child: ListView.separated(
+        scrollDirection: Axis.horizontal,
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+        itemCount: accounts.length + 1,
+        separatorBuilder: (_, __) => const SizedBox(width: 8),
+        itemBuilder: (context, index) {
+          if (index == 0) {
+            final selected = selectedAccountId == null;
+            return _FilterChip(
+              label: 'Todas',
+              selected: selected,
+              onTap: () => onSelected(null),
+            );
+          }
+          final account = accounts[index - 1];
+          final selected = selectedAccountId == account.id;
+          return _FilterChip(
+            label: account.name,
+            selected: selected,
+            onTap: () => onSelected(account.id),
+          );
+        },
+      ),
+    );
+  }
+}
+
+class _FilterChip extends StatelessWidget {
+  const _FilterChip({
+    required this.label,
+    required this.selected,
+    required this.onTap,
+  });
+
+  final String label;
+  final bool selected;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 140),
+        padding: const EdgeInsets.symmetric(horizontal: 12),
+        decoration: BoxDecoration(
+          color: selected ? AppColors.gray900 : Colors.transparent,
+          border: Border.all(
+            color: selected ? AppColors.gray900 : AppColors.gray200,
+          ),
+          borderRadius: BorderRadius.circular(999),
+        ),
+        alignment: Alignment.center,
+        child: Text(
+          label,
+          style: GoogleFonts.instrumentSans(
+            fontSize: 13,
+            fontWeight: selected ? FontWeight.w600 : FontWeight.w400,
+            color: selected ? AppColors.white : AppColors.gray600,
+          ),
+        ),
+      ),
     );
   }
 }
