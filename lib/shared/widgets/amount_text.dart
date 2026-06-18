@@ -10,6 +10,7 @@ class AmountText extends StatelessWidget {
     required this.cents,
     required this.currency,
     required this.type,
+    this.isIncoming = false,
     this.fontSize = 18,
     super.key,
   });
@@ -17,14 +18,18 @@ class AmountText extends StatelessWidget {
   final int cents;
   final String currency;
   final TransactionType type;
+  /// For transfers shown from the destination account's perspective.
+  final bool isIncoming;
   final double fontSize;
 
   @override
   Widget build(BuildContext context) {
+    final prefix = _prefix(type, isIncoming);
+    final color = _color(type, isIncoming);
     return Text(
-      '${_prefix(type)}${formatAmount(cents, currency)}',
+      '$prefix${formatAmount(cents, currency)}',
       style: GoogleFonts.ibmPlexMono(
-        color: _color(type),
+        color: color,
         fontSize: fontSize,
         fontWeight: FontWeight.w600,
         fontFeatures: const [FontFeature.tabularFigures()],
@@ -32,19 +37,23 @@ class AmountText extends StatelessWidget {
     );
   }
 
-  static String _prefix(TransactionType type) {
+  static String _prefix(TransactionType type, bool isIncoming) {
+    if (type == TransactionType.transfer) return isIncoming ? '−' : '';
     return switch (type) {
       TransactionType.expense => '−',
       TransactionType.income => '+',
-      TransactionType.transfer => '',
+      _ => '',
     };
   }
 
-  static Color _color(TransactionType type) {
+  static Color _color(TransactionType type, bool isIncoming) {
+    if (type == TransactionType.transfer) {
+      return isIncoming ? AppColors.income : AppColors.transfer;
+    }
     return switch (type) {
       TransactionType.expense => AppColors.expense,
       TransactionType.income => AppColors.income,
-      TransactionType.transfer => AppColors.transfer,
+      _ => AppColors.transfer,
     };
   }
 }

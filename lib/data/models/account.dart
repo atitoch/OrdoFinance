@@ -20,6 +20,14 @@ enum AccountType {
     orElse: () =>
         throw ArgumentError.value(value, 'value', 'Unknown account type'),
   );
+
+  String get label => switch (this) {
+    AccountType.checking => 'Corriente',
+    AccountType.savings => 'Ahorro',
+    AccountType.cash => 'Efectivo',
+    AccountType.credit => 'Crédito',
+    AccountType.investment => 'Inversión',
+  };
 }
 
 @HiveType(typeId: 2)

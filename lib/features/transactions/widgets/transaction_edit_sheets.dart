@@ -7,6 +7,7 @@ import 'package:ulid/ulid.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_spacing.dart';
 import '../../../core/utils/currency_formatter.dart';
+import '../../../data/models/account.dart';
 import '../../../data/models/category.dart';
 import '../../../data/models/transaction.dart';
 import '../../../shared/widgets/category_icon.dart';
@@ -293,61 +294,64 @@ class _CategoryGrid extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return SingleChildScrollView(
+    return GridView.builder(
       padding: const EdgeInsets.all(16),
-      child: Wrap(
-        spacing: 8,
-        runSpacing: 12,
-        children: categories.map((category) {
-          final color = parseCategoryColor(category.color);
-          final selected = category.id == selectedCategoryId;
-          return InkWell(
-            onTap: () => Navigator.of(context).pop(category),
-            borderRadius: BorderRadius.circular(12),
-            child: Container(
-              width: 80,
-              padding: const EdgeInsets.symmetric(vertical: 10),
-              decoration: BoxDecoration(
-                color: selected
-                    ? color.withValues(alpha: 0.08)
-                    : AppColors.white,
-                border: Border.all(
-                  color: selected ? color : Colors.transparent,
-                  width: 1.5,
-                ),
-                borderRadius: BorderRadius.circular(12),
+      gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
+        maxCrossAxisExtent: 90,
+        crossAxisSpacing: 8,
+        mainAxisSpacing: 12,
+        childAspectRatio: 80 / 76,
+      ),
+      itemCount: categories.length,
+      itemBuilder: (context, index) {
+        final category = categories[index];
+        final color = parseCategoryColor(category.color);
+        final selected = category.id == selectedCategoryId;
+        return InkWell(
+          onTap: () => Navigator.of(context).pop(category),
+          borderRadius: BorderRadius.circular(12),
+          child: Container(
+            padding: const EdgeInsets.symmetric(vertical: 10),
+            decoration: BoxDecoration(
+              color: selected ? color.withValues(alpha: 0.08) : AppColors.white,
+              border: Border.all(
+                color: selected ? color : Colors.transparent,
+                width: 1.5,
               ),
-              child: Column(
-                children: [
-                  Container(
-                    width: 36,
-                    height: 36,
-                    decoration: BoxDecoration(
-                      color: color,
-                      shape: BoxShape.circle,
-                    ),
-                    child: Icon(
-                      parseCategoryIcon(category.icon),
-                      color: AppColors.white,
-                      size: 18,
-                    ),
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Container(
+                  width: 36,
+                  height: 36,
+                  decoration: BoxDecoration(color: color, shape: BoxShape.circle),
+                  child: Icon(
+                    parseCategoryIcon(category.icon),
+                    color: AppColors.white,
+                    size: 18,
                   ),
-                  const SizedBox(height: 6),
-                  Text(
+                ),
+                const SizedBox(height: 6),
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 4),
+                  child: Text(
                     category.name,
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
+                    textAlign: TextAlign.center,
                     style: GoogleFonts.instrumentSans(
                       color: AppColors.gray900,
                       fontSize: 11,
                     ),
                   ),
-                ],
-              ),
+                ),
+              ],
             ),
-          );
-        }).toList(),
-      ),
+          ),
+        );
+      },
     );
   }
 }
@@ -533,14 +537,7 @@ class _AddTransactionSheetState extends ConsumerState<AddTransactionSheet> {
                       value: _accountId,
                       hint: 'Selecciona una cuenta',
                       error: _accountError,
-                      items: accounts
-                          .map(
-                            (a) => DropdownMenuItem(
-                              value: a.id,
-                              child: Text(a.name),
-                            ),
-                          )
-                          .toList(),
+                      items: accounts.map(_accountDropdownItem).toList(),
                       onChanged: (value) => setState(() {
                         _accountId = value;
                         _accountError = null;
@@ -558,19 +555,47 @@ class _AddTransactionSheetState extends ConsumerState<AddTransactionSheet> {
                         value: _toAccountId,
                         hint: 'Selecciona cuenta destino',
                         error: _toAccountError,
-                        items: accounts
-                            .map(
-                              (a) => DropdownMenuItem(
-                                value: a.id,
-                                child: Text(a.name),
-                              ),
-                            )
-                            .toList(),
+                        items: accounts.map(_accountDropdownItem).toList(),
                         onChanged: (value) => setState(() {
                           _toAccountId = value;
                           _toAccountError = null;
                         }),
                       ),
+                      if (_toAccountId != null &&
+                          accounts
+                                  .firstWhereOrNull((a) => a.id == _toAccountId)
+                                  ?.type ==
+                              AccountType.credit) ...[
+                        const SizedBox(height: 8),
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 12,
+                            vertical: 8,
+                          ),
+                          decoration: BoxDecoration(
+                            color: AppColors.incomeBg,
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: Row(
+                            children: [
+                              const Icon(
+                                Icons.credit_card_outlined,
+                                color: AppColors.income,
+                                size: 16,
+                              ),
+                              const SizedBox(width: 8),
+                              Text(
+                                'Este pago reducirá la deuda de la tarjeta',
+                                style: GoogleFonts.instrumentSans(
+                                  color: AppColors.income,
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w500,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
                       const SizedBox(height: 16),
                     ],
 
@@ -1116,6 +1141,42 @@ String centsToAmountString(int cents) {
   final whole = cents ~/ 100;
   final fraction = cents % 100;
   return '$whole.${fraction.toString().padLeft(2, '0')}';
+}
+
+DropdownMenuItem<String> _accountDropdownItem(Account account) {
+  return DropdownMenuItem(
+    value: account.id,
+    child: Row(
+      children: [
+        Expanded(
+          child: Text(
+            account.name,
+            overflow: TextOverflow.ellipsis,
+            style: GoogleFonts.instrumentSans(
+              color: AppColors.gray900,
+              fontSize: 14,
+            ),
+          ),
+        ),
+        const SizedBox(width: 8),
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+          decoration: BoxDecoration(
+            color: AppColors.gray100,
+            borderRadius: BorderRadius.circular(4),
+          ),
+          child: Text(
+            account.type.label,
+            style: GoogleFonts.instrumentSans(
+              color: AppColors.gray500,
+              fontSize: 11,
+              fontWeight: FontWeight.w500,
+            ),
+          ),
+        ),
+      ],
+    ),
+  );
 }
 
 bool _timeExceeds(TimeOfDay a, TimeOfDay b) =>

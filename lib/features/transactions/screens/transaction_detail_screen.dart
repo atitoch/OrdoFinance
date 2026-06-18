@@ -186,6 +186,7 @@ class _TransactionDetailScreenState
   PreferredSizeWidget _editAppBar(Transaction transaction) {
     return OrdoAppBar(
       title: '',
+      leadingWidth: 100,
       leading: TextButton(
         onPressed: _cancelEdit,
         child: Text(
@@ -730,14 +731,7 @@ class _EditRows extends StatelessWidget {
               border: InputBorder.none,
               errorText: state._accountError,
             ),
-            items: accounts
-                .map(
-                  (account) => DropdownMenuItem(
-                    value: account.id,
-                    child: Text(account.name),
-                  ),
-                )
-                .toList(),
+            items: accounts.map(_accountDropdownItem).toList(),
             onChanged: state.setAccountId,
           ),
         ),
@@ -751,14 +745,7 @@ class _EditRows extends StatelessWidget {
                 border: InputBorder.none,
                 errorText: state._toAccountError,
               ),
-              items: accounts
-                  .map(
-                    (account) => DropdownMenuItem(
-                      value: account.id,
-                      child: Text(account.name),
-                    ),
-                  )
-                  .toList(),
+              items: accounts.map(_accountDropdownItem).toList(),
               onChanged: state.setToAccountId,
             ),
           ),
@@ -1049,6 +1036,42 @@ final _valueStyle = GoogleFonts.instrumentSans(
 
 bool _timeExceeds(TimeOfDay a, TimeOfDay b) =>
     a.hour > b.hour || (a.hour == b.hour && a.minute > b.minute);
+
+DropdownMenuItem<String> _accountDropdownItem(Account account) {
+  return DropdownMenuItem(
+    value: account.id,
+    child: Row(
+      children: [
+        Expanded(
+          child: Text(
+            account.name,
+            overflow: TextOverflow.ellipsis,
+            style: GoogleFonts.instrumentSans(
+              color: AppColors.gray900,
+              fontSize: 14,
+            ),
+          ),
+        ),
+        const SizedBox(width: 8),
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+          decoration: BoxDecoration(
+            color: AppColors.gray100,
+            borderRadius: BorderRadius.circular(4),
+          ),
+          child: Text(
+            account.type.label,
+            style: GoogleFonts.instrumentSans(
+              color: AppColors.gray500,
+              fontSize: 11,
+              fontWeight: FontWeight.w500,
+            ),
+          ),
+        ),
+      ],
+    ),
+  );
+}
 
 extension _IterableExt<T> on Iterable<T> {
   T? firstWhereOrNull(bool Function(T item) test) {

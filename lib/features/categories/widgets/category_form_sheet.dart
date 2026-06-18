@@ -369,21 +369,18 @@ class _SheetActions extends StatelessWidget {
       child: SafeArea(
         top: false,
         child: isEditing
-            ? Row(
+            ? Column(
+                mainAxisSize: MainAxisSize.min,
                 children: [
-                  Expanded(
-                    child: OrdoButton.primary(
-                      label: 'Guardar cambios',
-                      onPressed: onSave,
-                      isLoading: isSubmitting,
-                    ),
+                  OrdoButton.primary(
+                    label: 'Guardar cambios',
+                    onPressed: onSave,
+                    isLoading: isSubmitting,
                   ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: OrdoButton.destructive(
-                      label: 'Eliminar',
-                      onPressed: isSystem ? null : onDelete,
-                    ),
+                  const SizedBox(height: 12),
+                  OrdoButton.destructive(
+                    label: 'Eliminar',
+                    onPressed: isSystem ? null : onDelete,
                   ),
                 ],
               )

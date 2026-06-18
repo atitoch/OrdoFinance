@@ -35,10 +35,7 @@ class _AccountFormSheetState extends ConsumerState<AccountFormSheet> {
 
   bool get _isEditing => widget.account != null;
 
-  bool get _canSubmit =>
-      !_isSubmitting &&
-      _nameController.text.trim().isNotEmpty &&
-      _balanceController.text.trim().isNotEmpty;
+  bool get _canSubmit => !_isSubmitting;
 
   @override
   void initState() {

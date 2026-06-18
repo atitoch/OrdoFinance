@@ -14,12 +14,15 @@ class TransactionRow extends StatelessWidget {
     required this.transaction,
     this.category,
     this.account,
+    this.isIncoming = false,
     super.key,
   });
 
   final Transaction transaction;
   final Category? category;
   final Account? account;
+  /// True when this transaction is a transfer arriving at the current account.
+  final bool isIncoming;
 
   @override
   Widget build(BuildContext context) {
@@ -90,6 +93,7 @@ class TransactionRow extends StatelessWidget {
                 cents: transaction.amount,
                 currency: transaction.currency,
                 type: transaction.type,
+                isIncoming: isIncoming,
                 fontSize: 16,
               ),
               const SizedBox(height: 3),

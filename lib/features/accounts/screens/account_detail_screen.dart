@@ -39,7 +39,9 @@ class AccountDetailScreen extends ConsumerWidget {
     final transactions =
         ref
             .watch(transactionsListProvider)
-            .where((tx) => tx.accountId == accountId)
+            .where(
+              (tx) => tx.accountId == accountId || tx.toAccountId == accountId,
+            )
             .toList()
           ..sort((a, b) => b.date.compareTo(a.date));
     final lastDate = transactions.firstOrNull?.date;
@@ -77,7 +79,7 @@ class AccountDetailScreen extends ConsumerWidget {
                 _AccountTypeChip(type: account.type),
                 const SizedBox(height: 12),
                 Text(
-                  isCredit
+                  isCredit && currentBalance > 0
                       ? '-${formatAmount(currentBalance, account.currency)}'
                       : formatAmount(currentBalance, account.currency),
                   textAlign: TextAlign.center,
@@ -147,10 +149,12 @@ class AccountDetailScreen extends ConsumerWidget {
                       final category = categories.firstWhereOrNull(
                         (item) => item.id == transaction.categoryId,
                       );
+                      final isIncoming = transaction.toAccountId == accountId;
                       return TransactionRow(
                         transaction: transaction,
                         category: category,
                         account: account,
+                        isIncoming: isIncoming,
                       );
                     }).toList(),
                   ),
