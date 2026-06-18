@@ -81,10 +81,33 @@ class _AccountFormSheetState extends ConsumerState<AccountFormSheet> {
                   borderRadius: BorderRadius.circular(AppSpacing.radiusFull),
                 ),
               ),
+              Padding(
+                padding: const EdgeInsets.fromLTRB(20, 0, 8, 0),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: Text(
+                        _isEditing ? 'Editar cuenta' : 'Nueva cuenta',
+                        style: GoogleFonts.instrumentSans(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w600,
+                          color: AppColors.gray900,
+                        ),
+                      ),
+                    ),
+                    IconButton(
+                      icon: const Icon(Icons.close, size: 20),
+                      color: AppColors.gray500,
+                      onPressed: () => Navigator.of(context).pop(),
+                    ),
+                  ],
+                ),
+              ),
+              const Divider(height: 1, color: AppColors.gray100),
               Expanded(
                 child: ListView(
                   controller: scrollController,
-                  padding: const EdgeInsets.fromLTRB(20, 8, 20, 24),
+                  padding: const EdgeInsets.fromLTRB(20, 16, 20, 24),
                   children: [
                     OrdoTextField(
                       label: 'NOMBRE DE CUENTA',
