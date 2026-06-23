@@ -97,35 +97,39 @@ class _TransactionListScreenState extends ConsumerState<TransactionListScreen> {
                 ? const _EmptyTransactions()
                 : CustomScrollView(
                     slivers: [
-                      for (final group in groups.entries) ...[
-                        SliverPersistentHeader(
-                          pinned: true,
-                          delegate: _DateHeaderDelegate(
-                            label: _dateLabel(group.key),
-                          ),
-                        ),
-                        SliverList.builder(
-                          itemCount: group.value.length,
-                          itemBuilder: (context, index) {
-                            final transaction = group.value[index];
-                            final category = categories.firstWhereOrNull(
-                              (item) => item.id == transaction.categoryId,
-                            );
-                            final account = accounts.firstWhereOrNull(
-                              (item) => item.id == transaction.accountId,
-                            );
-                            return InkWell(
-                              onTap: () =>
-                                  context.go('/transactions/${transaction.id}'),
-                              child: TransactionRow(
-                                transaction: transaction,
-                                category: category,
-                                account: account,
+                      for (final group in groups.entries)
+                        SliverMainAxisGroup(
+                          slivers: [
+                            SliverPersistentHeader(
+                              pinned: true,
+                              delegate: _DateHeaderDelegate(
+                                label: _dateLabel(group.key),
                               ),
-                            );
-                          },
+                            ),
+                            SliverList.builder(
+                              itemCount: group.value.length,
+                              itemBuilder: (context, index) {
+                                final transaction = group.value[index];
+                                final category = categories.firstWhereOrNull(
+                                  (item) => item.id == transaction.categoryId,
+                                );
+                                final account = accounts.firstWhereOrNull(
+                                  (item) => item.id == transaction.accountId,
+                                );
+                                return InkWell(
+                                  onTap: () => context.go(
+                                    '/transactions/${transaction.id}',
+                                  ),
+                                  child: TransactionRow(
+                                    transaction: transaction,
+                                    category: category,
+                                    account: account,
+                                  ),
+                                );
+                              },
+                            ),
+                          ],
                         ),
-                      ],
                     ],
                   ),
           ),
