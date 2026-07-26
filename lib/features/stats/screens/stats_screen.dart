@@ -340,9 +340,14 @@ class _CategoryBreakdownRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final color = parseCategoryColor(item.category.color);
-    final budget = item.category.budgetLimit;
+    // Un límite <= 0 se trata como "sin límite": las categorías guardadas con
+    // 0 antes de validarlo harían una división por cero al calcular el relleno.
+    final rawBudget = item.category.budgetLimit;
+    final budget = (rawBudget != null && rawBudget > 0) ? rawBudget : null;
     final overBudget = budget != null && item.total > budget;
-    final budgetFill = budget != null ? (item.total / budget).clamp(0.0, 1.0) : null;
+    final budgetFill = budget != null
+        ? (item.total / budget).clamp(0.0, 1.0)
+        : null;
 
     return Container(
       color: AppColors.white,

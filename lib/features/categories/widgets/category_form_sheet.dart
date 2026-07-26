@@ -232,9 +232,17 @@ class _CategoryFormSheetState extends ConsumerState<CategoryFormSheet> {
     final budget = _budgetController.text.trim();
     setState(() {
       _nameError = name.isEmpty ? 'El nombre de categoría es obligatorio' : null;
-      _budgetError = budget.isNotEmpty && int.tryParse(budget) == null
-          ? 'Ingresa un límite válido'
-          : null;
+      final parsedBudget = budget.isEmpty ? null : int.tryParse(budget);
+      if (budget.isEmpty) {
+        _budgetError = null;
+      } else if (parsedBudget == null) {
+        _budgetError = 'Ingresa un límite válido';
+      } else if (parsedBudget <= 0) {
+        // Un límite de 0 no significa nada: para "sin límite" se deja vacío.
+        _budgetError = 'Usa un límite mayor a 0 o deja el campo vacío';
+      } else {
+        _budgetError = null;
+      }
     });
     return _nameError == null && _budgetError == null;
   }

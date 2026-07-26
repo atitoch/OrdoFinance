@@ -75,19 +75,23 @@ abstract final class BackupService {
   }
 
   static Future<void> import(Map<String, dynamic> data) async {
+    // Se parsea todo antes de tocar Hive: si el respaldo viene dañado, los
+    // datos actuales quedan intactos.
+    final accounts = _parseAll(data['accounts'], Account.fromJson, 'cuentas');
+    final categories = _parseAll(
+      data['categories'],
+      Category.fromJson,
+      'categorías',
+    );
+    final transactions = _parseAll(
+      data['transactions'],
+      Transaction.fromJson,
+      'movimientos',
+    );
+
     final accountsBox = Hive.box<Account>('accounts');
     final categoriesBox = Hive.box<Category>('categories');
     final transactionsBox = Hive.box<Transaction>('transactions');
-
-    final accounts = (data['accounts'] as List<dynamic>)
-        .map((json) => Account.fromJson(json as Map<String, dynamic>))
-        .toList();
-    final categories = (data['categories'] as List<dynamic>)
-        .map((json) => Category.fromJson(json as Map<String, dynamic>))
-        .toList();
-    final transactions = (data['transactions'] as List<dynamic>)
-        .map((json) => Transaction.fromJson(json as Map<String, dynamic>))
-        .toList();
 
     await accountsBox.clear();
     await categoriesBox.clear();
@@ -96,5 +100,36 @@ abstract final class BackupService {
     await accountsBox.putAll({for (final a in accounts) a.id: a});
     await categoriesBox.putAll({for (final c in categories) c.id: c});
     await transactionsBox.putAll({for (final t in transactions) t.id: t});
+  }
+
+  /// Convierte una lista del respaldo, traduciendo cualquier fallo de formato
+  /// a un mensaje legible: sin esto salía el TypeError crudo de `fromJson`.
+  static List<T> _parseAll<T>(
+    Object? raw,
+    T Function(Map<String, dynamic>) fromJson,
+    String label,
+  ) {
+    if (raw is! List) {
+      throw BackupImportException(
+        'El respaldo no tiene una lista de $label válida.',
+      );
+    }
+    final items = <T>[];
+    for (var i = 0; i < raw.length; i++) {
+      final entry = raw[i];
+      if (entry is! Map) {
+        throw BackupImportException(
+          'El respaldo tiene $label con formato inválido (registro ${i + 1}).',
+        );
+      }
+      try {
+        items.add(fromJson(Map<String, dynamic>.from(entry)));
+      } catch (_) {
+        throw BackupImportException(
+          'El respaldo tiene $label con formato inválido (registro ${i + 1}).',
+        );
+      }
+    }
+    return items;
   }
 }
