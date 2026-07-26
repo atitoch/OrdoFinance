@@ -6,6 +6,7 @@ import 'package:ulid/ulid.dart';
 
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_spacing.dart';
+import '../../../core/utils/currency_formatter.dart';
 import '../../../data/models/account.dart';
 import '../../../shared/widgets/category_icon.dart';
 import '../../../shared/widgets/ordo_button.dart';
@@ -48,7 +49,7 @@ class _AccountFormSheetState extends ConsumerState<AccountFormSheet> {
         ? 0
         : account.balance + ref.read(computedBalanceProvider(account.id));
     _balanceController = TextEditingController(
-      text: account == null ? '' : _centsToInput(currentBalance),
+      text: account == null ? '' : centsToAmountInput(currentBalance),
     );
     _type = account?.type ?? AccountType.checking;
     _currency = account?.currency ?? ref.read(settingsProvider).currency;
@@ -152,7 +153,7 @@ class _AccountFormSheetState extends ConsumerState<AccountFormSheet> {
                       controller: _balanceController,
                       errorText: _balanceError,
                       keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                      inputFormatters: [_SingleDecimalFormatter()],
+                      inputFormatters: [SingleDecimalInputFormatter()],
                       onChanged: (_) => setState(() => _balanceError = null),
                       helperText: _type == AccountType.credit
                           ? 'Ingresa cuánto debes actualmente en esta tarjeta.'
@@ -247,7 +248,7 @@ class _AccountFormSheetState extends ConsumerState<AccountFormSheet> {
       final existing = widget.account;
       // Lo que se captura es el saldo actual; el modelo guarda el saldo
       // inicial, así que hay que descontarle el efecto de los movimientos.
-      final enteredCents = _parseInputToCents(_balanceController.text) ?? 0;
+      final enteredCents = parseAmountToCents(_balanceController.text) ?? 0;
       final movements = existing == null
           ? 0
           : ref.read(computedBalanceProvider(existing.id));
@@ -286,7 +287,7 @@ class _AccountFormSheetState extends ConsumerState<AccountFormSheet> {
         _balanceError = isCredit
             ? 'La deuda actual es obligatoria'
             : 'El saldo actual es obligatorio';
-      } else if (_parseInputToCents(balance) == null) {
+      } else if (parseAmountToCents(balance) == null) {
         _balanceError = 'Ingresa un monto válido, por ejemplo 1250.50';
       } else {
         _balanceError = null;
@@ -300,38 +301,6 @@ class _AccountFormSheetState extends ConsumerState<AccountFormSheet> {
     if (account == null) return;
     await ref.read(accountsProvider.notifier).archiveAccount(account.id);
     if (mounted) Navigator.of(context).pop();
-  }
-}
-
-/// Convierte lo escrito en el campo de saldo a centavos.
-/// Devuelve `null` cuando el texto no es un número usable ("1.2.3", ".", "").
-int? _parseInputToCents(String raw) {
-  final normalized = raw.trim().replaceAll(',', '.');
-  if (normalized.isEmpty || normalized == '.' || normalized == '-') return null;
-  if (!RegExp(r'^-?\d*\.?\d*$').hasMatch(normalized)) return null;
-  final value = double.tryParse(normalized);
-  if (value == null || !value.isFinite) return null;
-  return (value * 100).round();
-}
-
-String _centsToInput(int cents) {
-  return cents % 100 == 0
-      ? (cents ~/ 100).toString()
-      : (cents / 100).toStringAsFixed(2);
-}
-
-/// Deja escribir sólo dígitos, un signo inicial y un único separador decimal:
-/// el formatter anterior permitía "1.2.3", que hacía reventar `double.parse`.
-class _SingleDecimalFormatter extends TextInputFormatter {
-  static final _allowed = RegExp(r'^-?\d*[.,]?\d*$');
-
-  @override
-  TextEditingValue formatEditUpdate(
-    TextEditingValue oldValue,
-    TextEditingValue newValue,
-  ) {
-    if (newValue.text.isEmpty) return newValue;
-    return _allowed.hasMatch(newValue.text) ? newValue : oldValue;
   }
 }
 

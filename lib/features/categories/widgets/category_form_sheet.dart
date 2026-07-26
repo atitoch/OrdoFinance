@@ -1,11 +1,11 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:ulid/ulid.dart';
 
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_spacing.dart';
+import '../../../core/utils/currency_formatter.dart';
 import '../../../data/models/category.dart';
 import '../../../shared/widgets/category_icon.dart';
 import '../../../shared/widgets/ordo_button.dart';
@@ -37,7 +37,7 @@ class _CategoryFormSheetState extends ConsumerState<CategoryFormSheet> {
       !_isSubmitting &&
       _nameController.text.trim().isNotEmpty &&
       (_budgetController.text.trim().isEmpty ||
-          int.tryParse(_budgetController.text.trim()) != null);
+          parseAmountToCents(_budgetController.text.trim()) != null);
 
   @override
   void initState() {
@@ -47,7 +47,7 @@ class _CategoryFormSheetState extends ConsumerState<CategoryFormSheet> {
     _budgetController = TextEditingController(
       text: category?.budgetLimit == null
           ? ''
-          : (category!.budgetLimit! ~/ 100).toString(),
+          : centsToAmountInput(category!.budgetLimit!),
     );
     _icon = category?.icon ?? _iconOptions.first.name;
     _color = category?.color ?? _colorOptions.first;
@@ -166,8 +166,10 @@ class _CategoryFormSheetState extends ConsumerState<CategoryFormSheet> {
                       label: 'LÍMITE MENSUAL (OPCIONAL)',
                       controller: _budgetController,
                       errorText: _budgetError,
-                      keyboardType: TextInputType.number,
-                      inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+                      keyboardType: const TextInputType.numberWithOptions(
+                        decimal: true,
+                      ),
+                      inputFormatters: [SingleDecimalInputFormatter()],
                       onChanged: (_) => setState(() => _budgetError = null),
                       prefixText: r'$',
                       helperText: 'Déjalo vacío para sin límite',
@@ -201,9 +203,7 @@ class _CategoryFormSheetState extends ConsumerState<CategoryFormSheet> {
 
     final name = _nameController.text.trim();
     setState(() => _isSubmitting = true);
-    final budgetLimit = _budgetController.text.trim().isEmpty
-        ? null
-        : int.parse(_budgetController.text.trim()) * 100;
+    final budgetLimit = parseAmountToCents(_budgetController.text);
     final category = Category(
       id: widget.category?.id ?? Ulid().toString(),
       name: name,
@@ -232,7 +232,7 @@ class _CategoryFormSheetState extends ConsumerState<CategoryFormSheet> {
     final budget = _budgetController.text.trim();
     setState(() {
       _nameError = name.isEmpty ? 'El nombre de categoría es obligatorio' : null;
-      final parsedBudget = budget.isEmpty ? null : int.tryParse(budget);
+      final parsedBudget = budget.isEmpty ? null : parseAmountToCents(budget);
       if (budget.isEmpty) {
         _budgetError = null;
       } else if (parsedBudget == null) {

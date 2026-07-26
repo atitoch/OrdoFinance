@@ -119,6 +119,11 @@ class _AmountNumpadSheetState extends State<_AmountNumpadSheet> {
     );
   }
 
+  /// Dígitos enteros y decimales admitidos. Sin tope, un monto largo desbordaba
+  /// el `int` al convertirlo y se guardaba como 0 sin avisar.
+  static const _maxWholeDigits = 12;
+  static const _maxDecimals = 2;
+
   void _tap(String key) {
     if (key.isEmpty) return;
     setState(() {
@@ -129,6 +134,10 @@ class _AmountNumpadSheetState extends State<_AmountNumpadSheet> {
       } else if (key == '.') {
         if (!_value.contains('.')) _value += '.';
       } else {
+        final parts = _value.split('.');
+        final hasDecimals = parts.length > 1;
+        if (hasDecimals && parts[1].length >= _maxDecimals) return;
+        if (!hasDecimals && parts.first.length >= _maxWholeDigits) return;
         _value = _value == '0' ? key : '$_value$key';
       }
     });

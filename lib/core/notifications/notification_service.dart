@@ -1,5 +1,6 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
+import 'package:flutter_timezone/flutter_timezone.dart';
 import 'package:timezone/data/latest.dart' as tz_data;
 import 'package:timezone/timezone.dart' as tz;
 
@@ -19,8 +20,7 @@ abstract final class NotificationService {
     if (kIsWeb) return;
 
     tz_data.initializeTimeZones();
-    final local = tz.getLocation('America/Mexico_City');
-    tz.setLocalLocation(local);
+    await _configureLocalTimeZone();
 
     const android = AndroidInitializationSettings('@mipmap/ic_launcher');
     const ios = DarwinInitializationSettings(
@@ -33,6 +33,21 @@ abstract final class NotificationService {
         .resolvePlatformSpecificImplementation<
             AndroidFlutterLocalNotificationsPlugin>()
         ?.createNotificationChannel(_channel);
+  }
+
+  /// Usa la zona horaria del dispositivo. Estaba fija en America/Mexico_City,
+  /// así que fuera de esa zona los avisos salían a una hora ajena.
+  static Future<void> _configureLocalTimeZone() async {
+    try {
+      // flutter_timezone devuelve String en 3.x y un objeto con `identifier`
+      // en 4.x; se acepta cualquiera de las dos formas.
+      final dynamic result = await FlutterTimezone.getLocalTimezone();
+      final name = result is String ? result : result.identifier as String;
+      tz.setLocalLocation(tz.getLocation(name));
+    } catch (_) {
+      // Si el sistema no da la zona, UTC es preferible a imponer una ajena.
+      tz.setLocalLocation(tz.getLocation('UTC'));
+    }
   }
 
   static Future<void> requestPermission() async {
@@ -72,7 +87,7 @@ abstract final class NotificationService {
 
   static Future<void> _scheduleAccount(Account account, int idBase) async {
     for (final daysAhead in [15, 7, 1]) {
-      final scheduledDate = _nextScheduledDate(account.cutDay!, daysAhead);
+      final scheduledDate = nextScheduledDate(account.cutDay!, daysAhead);
       if (scheduledDate == null) continue;
 
       final title = daysAhead == 1
@@ -103,45 +118,40 @@ abstract final class NotificationService {
     }
   }
 
-  // Devuelve la próxima fecha en que falten exactamente [daysAhead] días para el corte.
-  static tz.TZDateTime? _nextScheduledDate(int cutDay, int daysAhead) {
-    final now = tz.TZDateTime.now(tz.local);
-    // Día objetivo = cutDay - daysAhead del mes actual
-    var targetDay = cutDay - daysAhead;
-    var month = now.month;
-    var year = now.year;
-
-    if (targetDay < 1) {
-      // Retrocede al mes anterior
-      month--;
-      if (month < 1) {
-        month = 12;
-        year--;
-      }
-      final daysInMonth = DateTime(year, month + 1, 0).day;
-      targetDay = daysInMonth + targetDay;
+  /// Próxima fecha, a las 9:00, en la que faltan [daysAhead] días para el
+  /// corte. Se prueban los cortes de los meses siguientes hasta dar con uno
+  /// cuyo aviso siga en el futuro.
+  ///
+  /// La versión anterior calculaba el día restando a mano y, cuando el aviso
+  /// ya había pasado, hacía `month++` seguido de `month--`: para un corte del
+  /// 1 al 15 devolvía la misma fecha pasada una y otra vez.
+  @visibleForTesting
+  static tz.TZDateTime? nextScheduledDate(
+    int cutDay,
+    int daysAhead, {
+    tz.TZDateTime? from,
+  }) {
+    final now = from ?? tz.TZDateTime.now(tz.local);
+    for (var offset = 0; offset <= 2; offset++) {
+      final cut = _cutDateFor(now.year, now.month + offset, cutDay);
+      final notice = cut.subtract(Duration(days: daysAhead));
+      final scheduled = tz.TZDateTime(
+        tz.local,
+        notice.year,
+        notice.month,
+        notice.day,
+        9,
+      );
+      if (scheduled.isAfter(now)) return scheduled;
     }
+    return null;
+  }
 
-    var scheduled = tz.TZDateTime(tz.local, year, month, targetDay, 9, 0);
-    if (scheduled.isBefore(now)) {
-      // Ya pasó este mes, programa para el mes siguiente
-      month++;
-      if (month > 12) {
-        month = 1;
-        year++;
-      }
-      targetDay = cutDay - daysAhead;
-      if (targetDay < 1) {
-        month--;
-        if (month < 1) {
-          month = 12;
-          year--;
-        }
-        final daysInMonth = DateTime(year, month + 1, 0).day;
-        targetDay = daysInMonth + targetDay;
-      }
-      scheduled = tz.TZDateTime(tz.local, year, month, targetDay, 9, 0);
-    }
-    return scheduled;
+  /// Fecha de corte de un mes. [month] puede desbordar 12: `TZDateTime` y
+  /// `DateTime` normalizan el año. El día se recorta a la longitud del mes,
+  /// para que un corte 31 caiga el 28 en febrero en vez de irse a marzo.
+  static tz.TZDateTime _cutDateFor(int year, int month, int cutDay) {
+    final daysInMonth = DateTime(year, month + 1, 0).day;
+    return tz.TZDateTime(tz.local, year, month, cutDay.clamp(1, daysInMonth), 9);
   }
 }

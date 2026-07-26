@@ -60,6 +60,35 @@ void main() {
     });
   });
 
+  group('parseAmountToCents', () {
+    test('acepta punto y coma como separador decimal', () {
+      expect(parseAmountToCents('1250.50'), 125050);
+      expect(parseAmountToCents('1250,50'), 125050);
+      expect(parseAmountToCents('1250'), 125000);
+    });
+
+    test('rechaza lo que no es un número usable', () {
+      expect(parseAmountToCents('1.2.3'), isNull);
+      expect(parseAmountToCents('.'), isNull);
+      expect(parseAmountToCents(''), isNull);
+      expect(parseAmountToCents('abc'), isNull);
+    });
+
+    test('rechaza montos que desbordan la aritmética entera', () {
+      expect(parseAmountToCents('99999999999999999999'), isNull);
+    });
+  });
+
+  group('centsToAmountInput', () {
+    test('conserva los centavos', () {
+      expect(centsToAmountInput(125050), '1250.50');
+    });
+
+    test('omite los decimales cuando son cero', () {
+      expect(centsToAmountInput(125000), '1250');
+    });
+  });
+
   test('formatAmount usa el separador decimal del locale', () {
     final formatted = formatAmount(123456, 'MXN');
     // es_MX: miles con coma y decimales con punto.

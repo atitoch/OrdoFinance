@@ -50,3 +50,27 @@ String formatSignedAmount(int cents, String currency) {
       ? '−${formatAmount(cents.abs(), currency)}'
       : formatAmount(cents, currency);
 }
+
+/// Convierte lo escrito en un campo de monto a centavos, aceptando coma o
+/// punto como separador decimal. Devuelve `null` cuando el texto no es un
+/// número usable ("1.2.3", ".", "", o un número que desborda un `int`).
+int? parseAmountToCents(String raw) {
+  final normalized = raw.trim().replaceAll(',', '.');
+  if (normalized.isEmpty || normalized == '.' || normalized == '-') return null;
+  if (!RegExp(r'^-?\d*\.?\d*$').hasMatch(normalized)) return null;
+  final value = double.tryParse(normalized);
+  if (value == null || !value.isFinite) return null;
+  final cents = value * 100;
+  // Más allá de esto la aritmética entera deja de ser exacta y el monto se
+  // convertiría en basura silenciosamente.
+  if (cents.abs() > 9007199254740991) return null;
+  return cents.round();
+}
+
+/// Texto editable para un campo de monto: sin separadores de miles y con
+/// decimales sólo cuando los hay.
+String centsToAmountInput(int cents) {
+  return cents % 100 == 0
+      ? (cents ~/ 100).toString()
+      : (cents / 100).toStringAsFixed(2);
+}

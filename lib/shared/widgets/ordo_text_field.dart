@@ -6,6 +6,21 @@ import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_spacing.dart';
 import 'section_label.dart';
 
+/// Deja escribir sólo dígitos, un signo inicial y un único separador decimal.
+/// Sin esto se podía teclear "1.2.3" y hacer reventar el parseo del monto.
+class SingleDecimalInputFormatter extends TextInputFormatter {
+  static final _allowed = RegExp(r'^-?\d*[.,]?\d*$');
+
+  @override
+  TextEditingValue formatEditUpdate(
+    TextEditingValue oldValue,
+    TextEditingValue newValue,
+  ) {
+    if (newValue.text.isEmpty) return newValue;
+    return _allowed.hasMatch(newValue.text) ? newValue : oldValue;
+  }
+}
+
 class OrdoTextField extends StatelessWidget {
   const OrdoTextField({
     required this.label,
