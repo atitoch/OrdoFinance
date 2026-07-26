@@ -73,12 +73,14 @@ class CategoryRow extends StatelessWidget {
             ),
             const SizedBox(width: 8),
           ],
-          Icon(
-            category.isSystem ? Icons.lock_outline : Icons.drag_handle,
-            color: AppColors.gray400,
-            size: 16,
-          ),
-          const SizedBox(width: 8),
+          if (category.isSystem) ...[
+            const Icon(
+              Icons.lock_outline,
+              color: AppColors.gray400,
+              size: 16,
+            ),
+            const SizedBox(width: 8),
+          ],
           const Icon(Icons.chevron_right, color: AppColors.gray400, size: 18),
         ],
       ),
@@ -101,7 +103,7 @@ class _CategoryTypeBadge extends StatelessWidget {
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
         child: Text(
-          type.name.toUpperCase(),
+          type.label.toUpperCase(),
           style: GoogleFonts.instrumentSans(
             color: _textColor,
             fontSize: 10,

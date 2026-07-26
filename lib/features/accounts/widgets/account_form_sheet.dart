@@ -42,12 +42,13 @@ class _AccountFormSheetState extends ConsumerState<AccountFormSheet> {
     super.initState();
     final account = widget.account;
     _nameController = TextEditingController(text: account?.name ?? '');
+    // El campo dice "saldo actual", así que tiene que mostrar el saldo con los
+    // movimientos ya aplicados, no el saldo inicial guardado en la cuenta.
+    final currentBalance = account == null
+        ? 0
+        : account.balance + ref.read(computedBalanceProvider(account.id));
     _balanceController = TextEditingController(
-      text: account == null
-          ? ''
-          : account.balance % 100 == 0
-              ? (account.balance ~/ 100).toString()
-              : (account.balance / 100).toStringAsFixed(2),
+      text: account == null ? '' : _centsToInput(currentBalance),
     );
     _type = account?.type ?? AccountType.checking;
     _currency = account?.currency ?? ref.read(settingsProvider).currency;
@@ -151,12 +152,12 @@ class _AccountFormSheetState extends ConsumerState<AccountFormSheet> {
                       controller: _balanceController,
                       errorText: _balanceError,
                       keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                      inputFormatters: [
-                        FilteringTextInputFormatter.allow(RegExp(r'[0-9.]')),
-                      ],
+                      inputFormatters: [_SingleDecimalFormatter()],
                       onChanged: (_) => setState(() => _balanceError = null),
                       helperText: _type == AccountType.credit
                           ? 'Ingresa cuánto debes actualmente en esta tarjeta.'
+                          : _isEditing
+                          ? 'Ajusta el saldo actual; tus movimientos se conservan.'
                           : 'Ingresa tu saldo actual para comenzar a registrar desde hoy.',
                       textStyle: GoogleFonts.ibmPlexMono(
                         color: AppColors.gray900,
@@ -242,35 +243,54 @@ class _AccountFormSheetState extends ConsumerState<AccountFormSheet> {
       return;
     }
     setState(() => _isSubmitting = true);
-    final account = Account(
-      id: widget.account?.id ?? Ulid().toString(),
-      name: _nameController.text.trim(),
-      type: _type,
-      balance: _balanceController.text.trim().isEmpty
+    try {
+      final existing = widget.account;
+      // Lo que se captura es el saldo actual; el modelo guarda el saldo
+      // inicial, así que hay que descontarle el efecto de los movimientos.
+      final enteredCents = _parseInputToCents(_balanceController.text) ?? 0;
+      final movements = existing == null
           ? 0
-          : (double.parse(_balanceController.text.trim()) * 100).round(),
-      currency: _currency,
-      color: _color,
-      icon: widget.account?.icon,
-      isActive: widget.account?.isActive ?? true,
-      createdAt: widget.account?.createdAt ?? DateTime.now(),
-      cutDay: _type == AccountType.credit ? _cutDay : null,
-    );
-    final notifier = ref.read(accountsProvider.notifier);
-    if (_isEditing) {
-      await notifier.updateAccount(account);
-    } else {
-      await notifier.addAccount(account);
+          : ref.read(computedBalanceProvider(existing.id));
+      final account = Account(
+        id: existing?.id ?? Ulid().toString(),
+        name: _nameController.text.trim(),
+        type: _type,
+        balance: enteredCents - movements,
+        currency: _currency,
+        color: _color,
+        icon: existing?.icon,
+        isActive: existing?.isActive ?? true,
+        createdAt: existing?.createdAt ?? DateTime.now(),
+        cutDay: _type == AccountType.credit ? _cutDay : null,
+      );
+      final notifier = ref.read(accountsProvider.notifier);
+      if (_isEditing) {
+        await notifier.updateAccount(account);
+      } else {
+        await notifier.addAccount(account);
+      }
+      if (mounted) Navigator.of(context).pop();
+    } finally {
+      // Sin esto, cualquier fallo dejaba el botón deshabilitado para siempre.
+      if (mounted) setState(() => _isSubmitting = false);
     }
-    if (mounted) Navigator.of(context).pop();
   }
 
   bool _validate() {
     final name = _nameController.text.trim();
     final balance = _balanceController.text.trim();
+    final isCredit = _type == AccountType.credit;
     setState(() {
       _nameError = name.isEmpty ? 'El nombre de cuenta es obligatorio' : null;
-      _balanceError = balance.isEmpty ? 'El saldo actual es obligatorio' : null;
+      if (balance.isEmpty) {
+        _balanceError = isCredit
+            ? 'La deuda actual es obligatoria'
+            : 'El saldo actual es obligatorio';
+      } else if (_parseInputToCents(balance) == null) {
+        _balanceError = 'Ingresa un monto válido, por ejemplo 1250.50';
+      } else {
+        _balanceError = null;
+      }
     });
     return _nameError == null && _balanceError == null;
   }
@@ -280,6 +300,38 @@ class _AccountFormSheetState extends ConsumerState<AccountFormSheet> {
     if (account == null) return;
     await ref.read(accountsProvider.notifier).archiveAccount(account.id);
     if (mounted) Navigator.of(context).pop();
+  }
+}
+
+/// Convierte lo escrito en el campo de saldo a centavos.
+/// Devuelve `null` cuando el texto no es un número usable ("1.2.3", ".", "").
+int? _parseInputToCents(String raw) {
+  final normalized = raw.trim().replaceAll(',', '.');
+  if (normalized.isEmpty || normalized == '.' || normalized == '-') return null;
+  if (!RegExp(r'^-?\d*\.?\d*$').hasMatch(normalized)) return null;
+  final value = double.tryParse(normalized);
+  if (value == null || !value.isFinite) return null;
+  return (value * 100).round();
+}
+
+String _centsToInput(int cents) {
+  return cents % 100 == 0
+      ? (cents ~/ 100).toString()
+      : (cents / 100).toStringAsFixed(2);
+}
+
+/// Deja escribir sólo dígitos, un signo inicial y un único separador decimal:
+/// el formatter anterior permitía "1.2.3", que hacía reventar `double.parse`.
+class _SingleDecimalFormatter extends TextInputFormatter {
+  static final _allowed = RegExp(r'^-?\d*[.,]?\d*$');
+
+  @override
+  TextEditingValue formatEditUpdate(
+    TextEditingValue oldValue,
+    TextEditingValue newValue,
+  ) {
+    if (newValue.text.isEmpty) return newValue;
+    return _allowed.hasMatch(newValue.text) ? newValue : oldValue;
   }
 }
 

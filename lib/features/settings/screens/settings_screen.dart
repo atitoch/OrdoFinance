@@ -6,9 +6,13 @@ import 'package:google_fonts/google_fonts.dart';
 import '../../../core/ai/gemini_service.dart';
 import '../../../core/backup/backup_service.dart';
 import '../../../core/theme/app_colors.dart';
+import '../../../core/utils/date_formatter.dart';
 import '../../../shared/widgets/ordo_app_bar.dart';
 import '../../../shared/widgets/section_label.dart';
+import '../../accounts/providers/accounts_provider.dart';
 import '../../accounts/widgets/account_form_sheet.dart';
+import '../../categories/providers/categories_provider.dart';
+import '../../transactions/providers/transactions_provider.dart';
 import '../providers/settings_provider.dart';
 
 class SettingsScreen extends ConsumerWidget {
@@ -60,7 +64,7 @@ class SettingsScreen extends ConsumerWidget {
               final value = await _showOptionsSheet(
                 context,
                 'Formato de fecha',
-                const ['DD/MM/YYYY', 'MM/DD/YYYY', 'YYYY-MM-DD'],
+                AppDateFormats.options,
                 settings.dateFormat,
               );
               if (value != null) await notifier.setDateFormat(value);
@@ -75,7 +79,7 @@ class SettingsScreen extends ConsumerWidget {
           ),
           _SettingsRow(
             label: 'Importar datos',
-            onTap: () => _importData(context),
+            onTap: () => _importData(context, ref),
           ),
         ],
       ),
@@ -93,7 +97,7 @@ class SettingsScreen extends ConsumerWidget {
     }
   }
 
-  Future<void> _importData(BuildContext context) async {
+  Future<void> _importData(BuildContext context, WidgetRef ref) async {
     Map<String, dynamic>? data;
     try {
       data = await BackupService.pickBackupFile();
@@ -131,6 +135,13 @@ class SettingsScreen extends ConsumerWidget {
 
     try {
       await BackupService.import(data);
+      // Hive ya cambió, pero los notifiers siguen con la copia anterior
+      // en memoria: hay que recargarlos para que la UI refleje el respaldo.
+      await Future.wait([
+        ref.read(accountsProvider.notifier).refresh(),
+        ref.read(categoriesProvider.notifier).refresh(),
+        ref.read(transactionsProvider.notifier).refresh(),
+      ]);
       if (!context.mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Datos importados correctamente.')),

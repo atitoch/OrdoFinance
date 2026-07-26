@@ -20,7 +20,7 @@ class TypeBadge extends StatelessWidget {
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
         child: Text(
-          type.name.toUpperCase(),
+          type.label.toUpperCase(),
           style: GoogleFonts.instrumentSans(
             color: _textColor(type),
             fontSize: 11,

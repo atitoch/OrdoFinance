@@ -20,6 +20,12 @@ enum TransactionType {
           'Unknown transaction type',
         ),
       );
+
+  String get label => switch (this) {
+    TransactionType.income => 'Ingreso',
+    TransactionType.expense => 'Gasto',
+    TransactionType.transfer => 'Transferencia',
+  };
 }
 
 @HiveType(typeId: 0)

@@ -38,7 +38,7 @@ class AmountText extends StatelessWidget {
   }
 
   static String _prefix(TransactionType type, bool isIncoming) {
-    if (type == TransactionType.transfer) return isIncoming ? '−' : '';
+    if (type == TransactionType.transfer) return isIncoming ? '+' : '−';
     return switch (type) {
       TransactionType.expense => '−',
       TransactionType.income => '+',

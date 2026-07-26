@@ -35,7 +35,7 @@ class ResourceStatusBanner extends StatelessWidget {
           children: [
             Expanded(
               child: Text(
-                'Could not sync latest data.',
+                'No se pudieron cargar los datos más recientes.',
                 style: GoogleFonts.instrumentSans(
                   color: AppColors.expense,
                   fontSize: 13,
@@ -43,7 +43,7 @@ class ResourceStatusBanner extends StatelessWidget {
                 ),
               ),
             ),
-            TextButton(onPressed: onRetry, child: const Text('Retry')),
+            TextButton(onPressed: onRetry, child: const Text('Reintentar')),
           ],
         ),
       );
@@ -55,7 +55,7 @@ class ResourceStatusBanner extends StatelessWidget {
         color: AppColors.warningBg,
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
         child: Text(
-          'Syncing local changes...',
+          'Sincronizando cambios locales…',
           style: GoogleFonts.instrumentSans(
             color: AppColors.warning,
             fontSize: 12,

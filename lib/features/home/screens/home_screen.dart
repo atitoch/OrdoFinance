@@ -16,6 +16,7 @@ import '../../../shared/widgets/section_label.dart';
 import '../../../shared/widgets/transaction_row.dart';
 import '../../accounts/providers/accounts_provider.dart';
 import '../../categories/providers/categories_provider.dart';
+import '../../settings/providers/settings_provider.dart';
 import '../../transactions/providers/transactions_provider.dart';
 
 class HomeScreen extends ConsumerWidget {
@@ -29,7 +30,8 @@ class HomeScreen extends ConsumerWidget {
     final accounts = ref.watch(accountsListProvider);
     final categories = ref.watch(categoriesListProvider);
     final transactions = ref.watch(transactionsListProvider);
-    final currency = accounts.firstOrNull?.currency ?? 'USD';
+    final currency =
+        accounts.firstOrNull?.currency ?? ref.watch(defaultCurrencyProvider);
     final netWorth = ref.watch(netWorthProvider);
     final now = DateTime.now();
     final currentMonth = transactions.where(
@@ -239,7 +241,7 @@ class _AccountCard extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final color = parseCategoryColor(account.color ?? '#18181B');
     final balance = ref.watch(currentBalanceProvider(account.id));
-    final isCredit = account.type == AccountType.credit;
+    final isNegative = accountBalanceIsNegative(balance, account.type);
     return Container(
       width: 168,
       padding: const EdgeInsets.all(16),
@@ -267,9 +269,9 @@ class _AccountCard extends ConsumerWidget {
           ),
           const SizedBox(height: 4),
           Text(
-            isCredit ? '-${formatAmount(balance, account.currency)}' : formatAmount(balance, account.currency),
+            formatAccountBalance(balance, account.currency, account.type),
             style: GoogleFonts.ibmPlexMono(
-              color: isCredit ? AppColors.expense : AppColors.gray900,
+              color: isNegative ? AppColors.expense : AppColors.gray900,
               fontSize: 15,
               fontWeight: FontWeight.w600,
             ),
@@ -362,7 +364,7 @@ class _Metric extends StatelessWidget {
         ),
         const SizedBox(height: 4),
         Text(
-          formatAmount(amount.abs(), currency),
+          formatSignedAmount(amount, currency),
           style: GoogleFonts.ibmPlexMono(
             color: color,
             fontSize: 14,

@@ -31,6 +31,21 @@ class _TransactionListScreenState extends ConsumerState<TransactionListScreen> {
   late String? _selectedAccountId = widget.accountId;
 
   @override
+  void didUpdateWidget(covariant TransactionListScreen oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    // La pantalla vive en un IndexedStack, así que el State sobrevive: sin
+    // esto el filtro se quedaba pegado en la cuenta con la que se entró.
+    if (widget.accountId != oldWidget.accountId) {
+      _selectedAccountId = widget.accountId;
+    }
+  }
+
+  bool get _canGoToNextMonth {
+    final now = DateTime.now();
+    return _selectedMonth.isBefore(DateTime(now.year, now.month));
+  }
+
+  @override
   Widget build(BuildContext context) {
     final transactionsStatus = ref.watch(transactionsProvider.select((s) => s.status));
     final accounts = ref.watch(accountsListProvider)
@@ -70,6 +85,7 @@ class _TransactionListScreenState extends ConsumerState<TransactionListScreen> {
           ),
           _MonthSelectorBar(
             month: _selectedMonth,
+            canGoNext: _canGoToNextMonth,
             onPrevious: () => setState(
               () => _selectedMonth = DateTime(
                 _selectedMonth.year,
@@ -124,6 +140,10 @@ class _TransactionListScreenState extends ConsumerState<TransactionListScreen> {
                                     transaction: transaction,
                                     category: category,
                                     account: account,
+                                    isIncoming:
+                                        _selectedAccountId != null &&
+                                        transaction.toAccountId ==
+                                            _selectedAccountId,
                                   ),
                                 );
                               },
@@ -269,12 +289,14 @@ class _MonthSelectorBar extends StatelessWidget {
     required this.onPrevious,
     required this.onNext,
     required this.onPick,
+    this.canGoNext = true,
   });
 
   final DateTime month;
   final VoidCallback onPrevious;
   final VoidCallback onNext;
   final VoidCallback onPick;
+  final bool canGoNext;
 
   @override
   Widget build(BuildContext context) {
@@ -306,8 +328,11 @@ class _MonthSelectorBar extends StatelessWidget {
             ),
           ),
           IconButton(
-            onPressed: onNext,
-            icon: const Icon(Icons.chevron_right, color: AppColors.gray900),
+            onPressed: canGoNext ? onNext : null,
+            icon: Icon(
+              Icons.chevron_right,
+              color: canGoNext ? AppColors.gray900 : AppColors.gray300,
+            ),
           ),
         ],
       ),

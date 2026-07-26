@@ -17,6 +17,7 @@ import '../../../shared/widgets/ordo_app_bar.dart';
 import '../../../shared/widgets/resource_status_banner.dart';
 import '../../../shared/widgets/section_label.dart';
 import '../../categories/providers/categories_provider.dart';
+import '../../settings/providers/settings_provider.dart';
 import '../../transactions/providers/transactions_provider.dart';
 
 class StatsScreen extends ConsumerStatefulWidget {
@@ -47,7 +48,9 @@ class _StatsScreenState extends ConsumerState<StatsScreen> {
         .toList();
     final income = _sum(monthTransactions, TransactionType.income);
     final expense = _sum(monthTransactions, TransactionType.expense);
-    final currency = monthTransactions.firstOrNull?.currency ?? 'USD';
+    final currency =
+        monthTransactions.firstOrNull?.currency ??
+        ref.watch(defaultCurrencyProvider);
     final breakdown = _buildBreakdown(monthTransactions, categories);
 
     return Scaffold(
@@ -318,7 +321,7 @@ class _SummaryCard extends StatelessWidget {
         ),
         const SizedBox(height: 8),
         Text(
-          formatAmount(amount.abs(), currency),
+          formatSignedAmount(amount, currency),
           style: GoogleFonts.ibmPlexMono(
             color: color,
             fontSize: 20,

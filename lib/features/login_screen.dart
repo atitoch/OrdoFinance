@@ -8,8 +8,8 @@ class LoginPlaceholderScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return const Scaffold(
-      appBar: OrdoAppBar(title: 'Login'),
-      body: Center(child: Text('Login placeholder')),
+      appBar: OrdoAppBar(title: 'Iniciar sesión'),
+      body: Center(child: Text('Pantalla de inicio de sesión pendiente')),
     );
   }
 }

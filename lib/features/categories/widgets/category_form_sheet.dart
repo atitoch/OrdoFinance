@@ -215,14 +215,15 @@ class _CategoryFormSheetState extends ConsumerState<CategoryFormSheet> {
       isSystem: widget.category?.isSystem ?? false,
     );
 
-    if (_isEditing) {
-      await ref.read(categoriesProvider.notifier).updateCategory(category);
-    } else {
-      await ref.read(categoriesProvider.notifier).addCategory(category);
-    }
-
-    if (mounted) {
-      Navigator.of(context).pop();
+    try {
+      if (_isEditing) {
+        await ref.read(categoriesProvider.notifier).updateCategory(category);
+      } else {
+        await ref.read(categoriesProvider.notifier).addCategory(category);
+      }
+      if (mounted) Navigator.of(context).pop();
+    } finally {
+      if (mounted) setState(() => _isSubmitting = false);
     }
   }
 
@@ -245,10 +246,11 @@ class _CategoryFormSheetState extends ConsumerState<CategoryFormSheet> {
     }
 
     setState(() => _isSubmitting = true);
-    await ref.read(categoriesProvider.notifier).deleteCategory(category.id);
-
-    if (mounted) {
-      Navigator.of(context).pop();
+    try {
+      await ref.read(categoriesProvider.notifier).deleteCategory(category.id);
+      if (mounted) Navigator.of(context).pop();
+    } finally {
+      if (mounted) setState(() => _isSubmitting = false);
     }
   }
 }

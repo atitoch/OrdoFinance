@@ -12,6 +12,7 @@ import '../../../shared/widgets/empty_state.dart';
 import '../../../shared/widgets/ordo_app_bar.dart';
 import '../../../shared/widgets/resource_status_banner.dart';
 import '../../../shared/widgets/section_label.dart';
+import '../../settings/providers/settings_provider.dart';
 import '../providers/accounts_provider.dart';
 import '../widgets/account_form_sheet.dart';
 
@@ -25,7 +26,9 @@ class AccountListScreen extends ConsumerWidget {
     final activeAccounts = accounts
         .where((account) => account.isActive)
         .toList();
-    final currency = activeAccounts.firstOrNull?.currency ?? 'USD';
+    final currency =
+        activeAccounts.firstOrNull?.currency ??
+        ref.watch(defaultCurrencyProvider);
     final total = activeAccounts.fold<int>(0, (sum, account) {
       final balance = ref.watch(currentBalanceProvider(account.id));
       return account.type == AccountType.credit ? sum - balance : sum + balance;
@@ -142,7 +145,7 @@ class _AccountListTile extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final color = parseCategoryColor(account.color ?? '#18181B');
     final balance = ref.watch(currentBalanceProvider(account.id));
-    final isCredit = account.type == AccountType.credit;
+    final isNegative = accountBalanceIsNegative(balance, account.type);
 
     return InkWell(
       onTap: onTap,
@@ -182,7 +185,7 @@ class _AccountListTile extends ConsumerWidget {
                   ),
                   const SizedBox(height: 3),
                   Text(
-                    _accountTypeLabel(account.type),
+                    account.type.label,
                     style: GoogleFonts.instrumentSans(
                       color: AppColors.gray500,
                       fontSize: 12,
@@ -195,11 +198,9 @@ class _AccountListTile extends ConsumerWidget {
               crossAxisAlignment: CrossAxisAlignment.end,
               children: [
                 Text(
-                  isCredit
-                      ? '-${formatAmount(balance, account.currency)}'
-                      : formatAmount(balance, account.currency),
+                  formatAccountBalance(balance, account.currency, account.type),
                   style: GoogleFonts.ibmPlexMono(
-                    color: isCredit ? AppColors.expense : AppColors.gray900,
+                    color: isNegative ? AppColors.expense : AppColors.gray900,
                     fontSize: 16,
                     fontWeight: FontWeight.w600,
                   ),
@@ -228,16 +229,6 @@ IconData _accountIcon(AccountType type) {
     AccountType.cash => Icons.payments_outlined,
     AccountType.credit => Icons.credit_card,
     AccountType.investment => Icons.show_chart,
-  };
-}
-
-String _accountTypeLabel(AccountType type) {
-  return switch (type) {
-    AccountType.checking => 'Checking',
-    AccountType.savings => 'Savings',
-    AccountType.cash => 'Cash',
-    AccountType.credit => 'Credit',
-    AccountType.investment => 'Investment',
   };
 }
 

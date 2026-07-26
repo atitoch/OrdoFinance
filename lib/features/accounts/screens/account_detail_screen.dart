@@ -46,7 +46,7 @@ class AccountDetailScreen extends ConsumerWidget {
           ..sort((a, b) => b.date.compareTo(a.date));
     final lastDate = transactions.firstOrNull?.date;
     final currentBalance = ref.watch(currentBalanceProvider(accountId));
-    final isCredit = account.type == AccountType.credit;
+    final isNegative = accountBalanceIsNegative(currentBalance, account.type);
 
     return Scaffold(
       backgroundColor: AppColors.gray50,
@@ -79,12 +79,14 @@ class AccountDetailScreen extends ConsumerWidget {
                 _AccountTypeChip(type: account.type),
                 const SizedBox(height: 12),
                 Text(
-                  isCredit && currentBalance > 0
-                      ? '-${formatAmount(currentBalance, account.currency)}'
-                      : formatAmount(currentBalance, account.currency),
+                  formatAccountBalance(
+                    currentBalance,
+                    account.currency,
+                    account.type,
+                  ),
                   textAlign: TextAlign.center,
                   style: GoogleFonts.ibmPlexMono(
-                    color: isCredit ? AppColors.expense : AppColors.gray900,
+                    color: isNegative ? AppColors.expense : AppColors.gray900,
                     fontSize: 36,
                     fontWeight: FontWeight.w600,
                   ),
@@ -202,13 +204,7 @@ class _AccountTypeChip extends StatelessWidget {
     );
   }
 
-  String get _label => switch (type) {
-    AccountType.checking => 'Checking',
-    AccountType.savings => 'Savings',
-    AccountType.cash => 'Cash',
-    AccountType.credit => 'Credit',
-    AccountType.investment => 'Investment',
-  };
+  String get _label => type.label;
 
   Color get _backgroundColor => switch (type) {
     AccountType.credit => AppColors.expenseBg,

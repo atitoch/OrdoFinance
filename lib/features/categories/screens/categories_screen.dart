@@ -115,16 +115,15 @@ class _CategoryList extends ConsumerWidget {
 
     final rows = _buildRows(categories);
 
-    return ReorderableListView.builder(
+    // Antes era un ReorderableListView con onReorder vacío: se podía arrastrar
+    // (y la fila mostraba un asa) sin que el orden se guardara nunca.
+    return ListView.builder(
       padding: EdgeInsets.zero,
-      buildDefaultDragHandles: false,
       itemCount: rows.length,
-      onReorder: (oldIndex, newIndex) {},
       itemBuilder: (context, index) {
         final row = rows[index];
         final category = row.category;
         final child = InkWell(
-          key: ValueKey(category.id),
           onTap: () => _showCategorySheet(context, category: category),
           child: CategoryRow(category: category, indent: row.indent),
         );
@@ -142,6 +141,7 @@ class _CategoryList extends ConsumerWidget {
             color: AppColors.expense,
             child: const Icon(Icons.delete_outline, color: AppColors.white),
           ),
+          confirmDismiss: (_) => _confirmDelete(context, category),
           onDismissed: (_) {
             ref.read(categoriesProvider.notifier).deleteCategory(category.id);
           },
@@ -149,6 +149,36 @@ class _CategoryList extends ConsumerWidget {
         );
       },
     );
+  }
+
+  Future<bool> _confirmDelete(BuildContext context, Category category) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text('¿Eliminar "${category.name}"?'),
+        content: const Text(
+          'Los movimientos que la usan quedarán sin categoría. '
+          'Esta acción no se puede deshacer.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(false),
+            child: const Text(
+              'Cancelar',
+              style: TextStyle(color: AppColors.gray900),
+            ),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(true),
+            child: const Text(
+              'Eliminar',
+              style: TextStyle(color: AppColors.expense),
+            ),
+          ),
+        ],
+      ),
+    );
+    return confirmed ?? false;
   }
 
   List<_CategoryRowData> _buildRows(List<Category> categories) {

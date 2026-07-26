@@ -41,6 +41,10 @@
 		<string>UIInterfaceOrientationLandscapeLeft</string>
 		<string>UIInterfaceOrientationLandscapeRight</string>
 	</array>
+	<key>NSCameraUsageDescription</key>
+	<string>Ordo Finance usa la cámara para leer tickets y autocompletar tus movimientos.</string>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>Ordo Finance accede a tus fotos para leer tickets y autocompletar tus movimientos.</string>
 	<key>CADisableMinimumFrameDurationOnPhone</key>
 	<true/>
 	<key>UIApplicationSupportsIndirectInputEvents</key>

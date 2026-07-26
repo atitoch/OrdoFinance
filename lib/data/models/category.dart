@@ -16,6 +16,12 @@ enum CategoryType {
     orElse: () =>
         throw ArgumentError.value(value, 'value', 'Unknown category type'),
   );
+
+  String get label => switch (this) {
+    CategoryType.income => 'Ingreso',
+    CategoryType.expense => 'Gasto',
+    CategoryType.both => 'Ambos',
+  };
 }
 
 @HiveType(typeId: 4)

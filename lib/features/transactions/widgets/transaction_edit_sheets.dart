@@ -4,7 +4,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:image_picker/image_picker.dart';
-import 'package:intl/intl.dart';
 import 'package:ulid/ulid.dart';
 
 import '../../../core/ai/gemini_service.dart';
@@ -20,6 +19,7 @@ import '../../../shared/widgets/ordo_button.dart';
 import '../../../shared/widgets/ordo_text_field.dart';
 import '../../accounts/providers/accounts_provider.dart';
 import '../../categories/providers/categories_provider.dart';
+import '../../settings/providers/settings_provider.dart';
 import '../providers/transactions_provider.dart';
 
 Future<String?> showAmountNumpadSheet(
@@ -390,6 +390,7 @@ class _AddTransactionSheetState extends ConsumerState<AddTransactionSheet> {
   String? _toAccountError;
   String? _categoryError;
   DateTime _date = DateTime.now();
+  bool _isSaving = false;
 
   @override
   void dispose() {
@@ -406,10 +407,9 @@ class _AddTransactionSheetState extends ConsumerState<AddTransactionSheet> {
         .where((account) => account.isActive)
         .toList();
     _accountId ??= accounts.firstOrNull?.id;
-    final currency = accounts
-            .firstWhereOrNull((a) => a.id == _accountId)
-            ?.currency ??
-        'USD';
+    final currency =
+        accounts.firstWhereOrNull((a) => a.id == _accountId)?.currency ??
+        ref.watch(defaultCurrencyProvider);
     final amountCents = _amountToCents(_amount);
     final amountIsZero = amountCents <= 0;
 
@@ -645,7 +645,7 @@ class _AddTransactionSheetState extends ConsumerState<AddTransactionSheet> {
                     const SizedBox(height: 4),
                     _TappableField(
                       icon: Icons.calendar_today_outlined,
-                      label: DateFormat('MMM d, yyyy · HH:mm').format(_date),
+                      label: ref.watch(dateFormatsProvider).dateTime(_date),
                       onTap: _pickDate,
                     ),
                     const SizedBox(height: 16),
@@ -669,7 +669,8 @@ class _AddTransactionSheetState extends ConsumerState<AddTransactionSheet> {
                   top: false,
                   child: OrdoButton.primary(
                     label: 'Guardar movimiento',
-                    onPressed: _save,
+                    onPressed: _isSaving ? null : _save,
+                    isLoading: _isSaving,
                   ),
                 ),
               ),
@@ -709,11 +710,15 @@ class _AddTransactionSheetState extends ConsumerState<AddTransactionSheet> {
         _descriptionError = null;
       }
       if (parsed.categoryName != null) {
-        _category = categories.firstWhereOrNull(
-          (c) =>
-              c.name.toLowerCase() == parsed.categoryName!.toLowerCase(),
+        final match = categories.firstWhereOrNull(
+          (c) => c.name.toLowerCase() == parsed.categoryName!.toLowerCase(),
         );
-        _categoryError = null;
+        // Si la IA devuelve una categoría que no existe, se conserva la que
+        // ya estaba elegida en vez de dejar el campo vacío.
+        if (match != null) {
+          _category = match;
+          _categoryError = null;
+        }
       }
       if (parsed.date != null) _date = parsed.date!;
       if (parsed.note?.isNotEmpty == true) {
@@ -784,22 +789,26 @@ class _AddTransactionSheetState extends ConsumerState<AddTransactionSheet> {
   }
 
   Future<void> _save() async {
+    if (_isSaving) return;
     if (!_validate()) {
       _scrollToFirstError();
       return;
     }
+    // Sin este candado, dos toques rápidos creaban dos movimientos.
+    setState(() => _isSaving = true);
     final transaction = Transaction(
       id: Ulid().toString(),
       type: _type,
       amount: _amountToCents(_amount),
-      currency: ref
+      currency:
+          ref
               .read(accountsListProvider)
               .firstWhereOrNull((a) => a.id == _accountId)
               ?.currency ??
-          'USD',
+          ref.read(defaultCurrencyProvider),
       accountId: _accountId!,
       toAccountId: _type == TransactionType.transfer ? _toAccountId : null,
-      categoryId: _category?.id,
+      categoryId: _type == TransactionType.transfer ? null : _category?.id,
       description: _descriptionController.text.trim(),
       note: _noteController.text.trim().isEmpty
           ? null
@@ -808,8 +817,12 @@ class _AddTransactionSheetState extends ConsumerState<AddTransactionSheet> {
       date: _date,
       createdAt: DateTime.now(),
     );
-    await ref.read(transactionsProvider.notifier).addTransaction(transaction);
-    if (mounted) Navigator.of(context).pop();
+    try {
+      await ref.read(transactionsProvider.notifier).addTransaction(transaction);
+      if (mounted) Navigator.of(context).pop();
+    } finally {
+      if (mounted) setState(() => _isSaving = false);
+    }
   }
 
   bool _validate() {
@@ -1065,7 +1078,7 @@ class _AiInputSheetState extends State<_AiInputSheet> {
       }
       if (mounted) Navigator.of(context).pop(result);
     } catch (e) {
-      setState(() => _error = 'Error al conectar con Gemini: $e');
+      if (mounted) setState(() => _error = 'Error al conectar con Gemini: $e');
     } finally {
       if (mounted) setState(() => _loading = false);
     }

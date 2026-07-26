@@ -30,7 +30,9 @@ class TransactionRow extends StatelessWidget {
     final categoryName = category?.name ?? 'Sin categoría';
     final time = DateFormat.jm().format(transaction.date);
 
-    return Container(
+    // Ink en lugar de Container: con un fondo opaco encima, el ripple del
+    // InkWell que envuelve la fila quedaba tapado.
+    return Ink(
       height: 64,
       decoration: const BoxDecoration(
         color: AppColors.white,

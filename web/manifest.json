@@ -1,11 +1,11 @@
 {
-    "name": "ordo_finance",
-    "short_name": "ordo_finance",
+    "name": "Ordo Finance",
+    "short_name": "Ordo Finance",
     "start_url": ".",
     "display": "standalone",
     "background_color": "#0175C2",
     "theme_color": "#0175C2",
-    "description": "A new Flutter project.",
+    "description": "Ordo Finance: controla tus cuentas, gastos e ingresos.",
     "orientation": "portrait-primary",
     "prefer_related_applications": false,
     "icons": [

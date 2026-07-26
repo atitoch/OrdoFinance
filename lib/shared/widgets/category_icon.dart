@@ -50,6 +50,7 @@ const _materialIconNames = <String, IconData>{
   'groceries': Icons.shopping_basket_outlined,
   'shopping_cart': Icons.shopping_cart_outlined,
   'coffee': Icons.local_cafe_outlined,
+  'local_cafe': Icons.local_cafe_outlined,
   'fastfood': Icons.fastfood_outlined,
   'pizza': Icons.local_pizza_outlined,
   'cake': Icons.cake_outlined,
@@ -104,9 +105,11 @@ const _materialIconNames = <String, IconData>{
   'beauty': Icons.face_outlined,
   'gifts': Icons.card_giftcard_outlined,
   'gift': Icons.card_giftcard_outlined,
+  'card_giftcard': Icons.card_giftcard_outlined,
 
   // Education
   'education': Icons.school_outlined,
+  'school': Icons.school_outlined,
   'book': Icons.menu_book_outlined,
   'library': Icons.local_library_outlined,
 

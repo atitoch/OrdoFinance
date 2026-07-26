@@ -49,15 +49,24 @@ abstract final class NotificationService {
 
   static Future<void> scheduleForAccounts(List<Account> accounts) async {
     if (kIsWeb) return;
-    await _plugin.cancelAll();
-    var idBase = 0;
-    for (final account in accounts) {
-      if (account.type == AccountType.credit &&
+    final withCutDay = accounts.where(
+      (account) =>
+          account.type == AccountType.credit &&
           account.cutDay != null &&
-          account.isActive) {
-        await _scheduleAccount(account, idBase);
-        idBase += 3;
-      }
+          account.isActive,
+    );
+
+    await _plugin.cancelAll();
+    if (withCutDay.isEmpty) return;
+
+    // Sin este permiso (Android 13+ e iOS) las alertas se programan pero
+    // nunca se muestran.
+    await requestPermission();
+
+    var idBase = 0;
+    for (final account in withCutDay) {
+      await _scheduleAccount(account, idBase);
+      idBase += 3;
     }
   }
 

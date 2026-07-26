@@ -1,6 +1,8 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 
+import '../../../core/utils/date_formatter.dart';
+
 class AppSettings {
   const AppSettings({this.currency = 'USD', this.dateFormat = 'DD/MM/YYYY'});
 
@@ -42,3 +44,14 @@ final settingsProvider =
     StateNotifierProvider<SettingsNotifier, AppSettings>(
       (_) => SettingsNotifier(),
     );
+
+/// Moneda con la que se muestran los totales cuando no hay una cuenta
+/// concreta de la cual tomarla.
+final defaultCurrencyProvider = Provider<String>((ref) {
+  return ref.watch(settingsProvider).currency;
+});
+
+/// Formateador de fechas que respeta la preferencia de Ajustes.
+final dateFormatsProvider = Provider<AppDateFormats>((ref) {
+  return AppDateFormats(ref.watch(settingsProvider).dateFormat);
+});

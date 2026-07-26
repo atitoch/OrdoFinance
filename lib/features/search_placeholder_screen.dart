@@ -33,10 +33,13 @@ class _SearchPlaceholderScreenState
   List<Transaction> _filter(List<Transaction> all) {
     if (_query.isEmpty) return const [];
     final q = _query.toLowerCase();
-    return all.where((tx) {
-      return tx.description.toLowerCase().contains(q) ||
-          (tx.note?.toLowerCase().contains(q) ?? false);
-    }).toList();
+    final results =
+        all.where((tx) {
+          return tx.description.toLowerCase().contains(q) ||
+              (tx.note?.toLowerCase().contains(q) ?? false) ||
+              tx.tags.any((tag) => tag.toLowerCase().contains(q));
+        }).toList()..sort((a, b) => b.date.compareTo(a.date));
+    return results;
   }
 
   @override
