@@ -1,9 +1,14 @@
+import 'dart:typed_data';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:image_picker/image_picker.dart';
 import 'package:intl/intl.dart';
 import 'package:ulid/ulid.dart';
 
+import '../../../core/ai/gemini_service.dart';
+import '../../../core/ai/parsed_transaction.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_spacing.dart';
 import '../../../core/utils/currency_formatter.dart';
@@ -429,6 +434,29 @@ class _AddTransactionSheetState extends ConsumerState<AddTransactionSheet> {
                   borderRadius: BorderRadius.circular(999),
                 ),
               ),
+              Padding(
+                padding: const EdgeInsets.only(right: 16, bottom: 4),
+                child: Align(
+                  alignment: Alignment.centerRight,
+                  child: TextButton.icon(
+                    onPressed: _openAiSheet,
+                    style: TextButton.styleFrom(
+                      foregroundColor: AppColors.gray500,
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 8,
+                        vertical: 4,
+                      ),
+                      minimumSize: Size.zero,
+                      tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                    ),
+                    icon: const Icon(Icons.auto_awesome, size: 14),
+                    label: Text(
+                      'Autocompletar con IA',
+                      style: GoogleFonts.instrumentSans(fontSize: 12),
+                    ),
+                  ),
+                ),
+              ),
               Expanded(
                 child: ListView(
                   controller: scrollController,
@@ -652,6 +680,48 @@ class _AddTransactionSheetState extends ConsumerState<AddTransactionSheet> {
     );
   }
 
+  Future<void> _openAiSheet() async {
+    final categories = ref.read(categoriesListProvider);
+    final result = await showModalBottomSheet<ParsedTransaction>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (context) => _AiInputSheet(categories: categories),
+    );
+    if (result != null && mounted) {
+      _applyParsed(result, categories);
+    }
+  }
+
+  void _applyParsed(ParsedTransaction parsed, List<Category> categories) {
+    setState(() {
+      _type = switch (parsed.type) {
+        'income' => TransactionType.income,
+        'transfer' => TransactionType.transfer,
+        _ => TransactionType.expense,
+      };
+      if (parsed.amount > 0) {
+        _amount = parsed.amount.toStringAsFixed(2);
+        _amountError = null;
+      }
+      if (parsed.description.isNotEmpty) {
+        _descriptionController.text = parsed.description;
+        _descriptionError = null;
+      }
+      if (parsed.categoryName != null) {
+        _category = categories.firstWhereOrNull(
+          (c) =>
+              c.name.toLowerCase() == parsed.categoryName!.toLowerCase(),
+        );
+        _categoryError = null;
+      }
+      if (parsed.date != null) _date = parsed.date!;
+      if (parsed.note?.isNotEmpty == true) {
+        _noteController.text = parsed.note!;
+      }
+    });
+  }
+
   Future<void> _editAmount() async {
     final value = await showAmountNumpadSheet(context, _amount);
     if (value != null) {
@@ -789,6 +859,257 @@ class _AddTransactionSheetState extends ConsumerState<AddTransactionSheet> {
         alignment: 0.1,
       );
     }
+  }
+}
+
+// ── AI input sheet ──────────────────────────────────────────────────────────
+
+class _AiInputSheet extends StatefulWidget {
+  const _AiInputSheet({required this.categories});
+
+  final List<Category> categories;
+
+  @override
+  State<_AiInputSheet> createState() => _AiInputSheetState();
+}
+
+class _AiInputSheetState extends State<_AiInputSheet> {
+  final _textController = TextEditingController();
+  Uint8List? _imageBytes;
+  bool _loading = false;
+  String? _error;
+
+  @override
+  void dispose() {
+    _textController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: EdgeInsets.only(
+        bottom: MediaQuery.of(context).viewInsets.bottom,
+      ),
+      decoration: const BoxDecoration(
+        color: AppColors.white,
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      child: SafeArea(
+        top: false,
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(20, 16, 20, 24),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Center(
+                child: Container(
+                  width: 36,
+                  height: 4,
+                  margin: const EdgeInsets.only(bottom: 16),
+                  decoration: BoxDecoration(
+                    color: AppColors.gray200,
+                    borderRadius: BorderRadius.circular(999),
+                  ),
+                ),
+              ),
+              Row(
+                children: [
+                  const Icon(Icons.auto_awesome, size: 16, color: AppColors.gray700),
+                  const SizedBox(width: 6),
+                  Text(
+                    'Autocompletar con IA',
+                    style: GoogleFonts.instrumentSans(
+                      fontSize: 15,
+                      fontWeight: FontWeight.w600,
+                      color: AppColors.gray900,
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 14),
+              TextField(
+                controller: _textController,
+                maxLines: 3,
+                autofocus: true,
+                style: GoogleFonts.instrumentSans(
+                  fontSize: 14,
+                  color: AppColors.gray900,
+                ),
+                decoration: InputDecoration(
+                  hintText:
+                      'Describe el movimiento...\n"Gasté \$350 en Uber" o "Cobré \$5000 de cliente X"',
+                  hintStyle: GoogleFonts.instrumentSans(
+                    fontSize: 13,
+                    color: AppColors.gray400,
+                  ),
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(8),
+                    borderSide: const BorderSide(color: AppColors.gray200),
+                  ),
+                  enabledBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(8),
+                    borderSide: const BorderSide(color: AppColors.gray200),
+                  ),
+                  focusedBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(8),
+                    borderSide: const BorderSide(color: AppColors.gray400),
+                  ),
+                  contentPadding: const EdgeInsets.all(12),
+                ),
+              ),
+              const SizedBox(height: 12),
+              Row(
+                children: [
+                  _ImageSourceButton(
+                    icon: Icons.camera_alt_outlined,
+                    label: 'Cámara',
+                    onTap: () => _pickImage(ImageSource.camera),
+                  ),
+                  const SizedBox(width: 8),
+                  _ImageSourceButton(
+                    icon: Icons.photo_library_outlined,
+                    label: 'Galería',
+                    onTap: () => _pickImage(ImageSource.gallery),
+                  ),
+                  if (_imageBytes != null) ...[
+                    const SizedBox(width: 8),
+                    Container(
+                      width: 36,
+                      height: 36,
+                      decoration: BoxDecoration(
+                        borderRadius: BorderRadius.circular(6),
+                        image: DecorationImage(
+                          image: MemoryImage(_imageBytes!),
+                          fit: BoxFit.cover,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 4),
+                    GestureDetector(
+                      onTap: () => setState(() => _imageBytes = null),
+                      child: const Icon(
+                        Icons.close,
+                        size: 16,
+                        color: AppColors.gray400,
+                      ),
+                    ),
+                  ],
+                ],
+              ),
+              if (_error != null) ...[
+                const SizedBox(height: 10),
+                Text(
+                  _error!,
+                  style: GoogleFonts.instrumentSans(
+                    fontSize: 12,
+                    color: AppColors.expense,
+                  ),
+                ),
+              ],
+              const SizedBox(height: 16),
+              OrdoButton.primary(
+                label: _loading ? 'Analizando...' : 'Analizar',
+                onPressed: _loading ? null : _analyze,
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Future<void> _pickImage(ImageSource source) async {
+    final picker = ImagePicker();
+    final file = await picker.pickImage(
+      source: source,
+      imageQuality: 70,
+      maxWidth: 1024,
+    );
+    if (file == null) return;
+    final bytes = await file.readAsBytes();
+    setState(() => _imageBytes = bytes);
+  }
+
+  Future<void> _analyze() async {
+    final text = _textController.text.trim();
+    if (text.isEmpty && _imageBytes == null) {
+      setState(() => _error = 'Escribe algo o selecciona una imagen.');
+      return;
+    }
+    setState(() {
+      _loading = true;
+      _error = null;
+    });
+    try {
+      final service = GeminiService();
+      final categoryNames =
+          widget.categories.map((c) => c.name).toList();
+      ParsedTransaction? result;
+      if (_imageBytes != null) {
+        result = await service.parseFromImage(
+          _imageBytes!,
+          'image/jpeg',
+          categoryNames,
+        );
+      } else {
+        result = await service.parseFromText(text, categoryNames);
+      }
+      if (result == null) {
+        setState(
+          () => _error =
+              'No se pudo analizar. Revisa tu API key en Ajustes → Inteligencia Artificial.',
+        );
+        return;
+      }
+      if (mounted) Navigator.of(context).pop(result);
+    } catch (e) {
+      setState(() => _error = 'Error al conectar con Gemini: $e');
+    } finally {
+      if (mounted) setState(() => _loading = false);
+    }
+  }
+}
+
+class _ImageSourceButton extends StatelessWidget {
+  const _ImageSourceButton({
+    required this.icon,
+    required this.label,
+    required this.onTap,
+  });
+
+  final IconData icon;
+  final String label;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(8),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+        decoration: BoxDecoration(
+          border: Border.all(color: AppColors.gray200),
+          borderRadius: BorderRadius.circular(8),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(icon, size: 16, color: AppColors.gray500),
+            const SizedBox(width: 6),
+            Text(
+              label,
+              style: GoogleFonts.instrumentSans(
+                fontSize: 13,
+                color: AppColors.gray700,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
   }
 }
 

@@ -43,7 +43,11 @@ class _AccountFormSheetState extends ConsumerState<AccountFormSheet> {
     final account = widget.account;
     _nameController = TextEditingController(text: account?.name ?? '');
     _balanceController = TextEditingController(
-      text: account == null ? '' : (account.balance ~/ 100).toString(),
+      text: account == null
+          ? ''
+          : account.balance % 100 == 0
+              ? (account.balance ~/ 100).toString()
+              : (account.balance / 100).toStringAsFixed(2),
     );
     _type = account?.type ?? AccountType.checking;
     _currency = account?.currency ?? ref.read(settingsProvider).currency;
@@ -65,7 +69,11 @@ class _AccountFormSheetState extends ConsumerState<AccountFormSheet> {
       initialChildSize: 0.75,
       maxChildSize: 0.9,
       builder: (context, scrollController) {
-        return DecoratedBox(
+        return Padding(
+          padding: EdgeInsets.only(
+            bottom: MediaQuery.of(context).viewInsets.bottom,
+          ),
+          child: DecoratedBox(
           decoration: const BoxDecoration(
             color: AppColors.white,
             borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
@@ -142,8 +150,10 @@ class _AccountFormSheetState extends ConsumerState<AccountFormSheet> {
                           : 'SALDO ACTUAL',
                       controller: _balanceController,
                       errorText: _balanceError,
-                      keyboardType: TextInputType.number,
-                      inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+                      keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                      inputFormatters: [
+                        FilteringTextInputFormatter.allow(RegExp(r'[0-9.]')),
+                      ],
                       onChanged: (_) => setState(() => _balanceError = null),
                       helperText: _type == AccountType.credit
                           ? 'Ingresa cuánto debes actualmente en esta tarjeta.'
@@ -221,6 +231,7 @@ class _AccountFormSheetState extends ConsumerState<AccountFormSheet> {
               ),
             ],
           ),
+          ),
         );
       },
     );
@@ -237,7 +248,7 @@ class _AccountFormSheetState extends ConsumerState<AccountFormSheet> {
       type: _type,
       balance: _balanceController.text.trim().isEmpty
           ? 0
-          : int.parse(_balanceController.text.trim()) * 100,
+          : (double.parse(_balanceController.text.trim()) * 100).round(),
       currency: _currency,
       color: _color,
       icon: widget.account?.icon,
