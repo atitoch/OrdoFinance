@@ -340,45 +340,82 @@ class _CategoryBreakdownRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final color = parseCategoryColor(item.category.color);
+    final budget = item.category.budgetLimit;
+    final overBudget = budget != null && item.total > budget;
+    final budgetFill = budget != null ? (item.total / budget).clamp(0.0, 1.0) : null;
+
     return Container(
       color: AppColors.white,
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-      child: Row(
+      child: Column(
         children: [
-          SizedBox(width: 140, child: CategoryChip(category: item.category)),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
+          Row(
+            children: [
+              SizedBox(width: 140, child: CategoryChip(category: item.category)),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    ClipRRect(
+                      borderRadius: BorderRadius.circular(2),
+                      child: LinearProgressIndicator(
+                        value: item.percentage,
+                        minHeight: 4,
+                        color: color,
+                        backgroundColor: AppColors.gray100,
+                      ),
+                    ),
+                    const SizedBox(height: 5),
+                    Text(
+                      '${(item.percentage * 100).round()}%',
+                      style: GoogleFonts.instrumentSans(
+                        color: AppColors.gray400,
+                        fontSize: 11,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: 12),
+              Text(
+                formatAmount(item.total, currency),
+                style: GoogleFonts.ibmPlexMono(
+                  color: overBudget ? AppColors.expense : AppColors.gray900,
+                  fontSize: 13,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+            ],
+          ),
+          if (budget != null) ...[
+            const SizedBox(height: 6),
+            Row(
               children: [
-                ClipRRect(
-                  borderRadius: BorderRadius.circular(2),
-                  child: LinearProgressIndicator(
-                    value: item.percentage,
-                    minHeight: 4,
-                    color: color,
-                    backgroundColor: AppColors.gray100,
+                Expanded(
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.circular(2),
+                    child: LinearProgressIndicator(
+                      value: budgetFill,
+                      minHeight: 3,
+                      color: overBudget ? AppColors.expense : AppColors.income,
+                      backgroundColor: AppColors.gray100,
+                    ),
                   ),
                 ),
-                const SizedBox(height: 5),
+                const SizedBox(width: 8),
                 Text(
-                  '${(item.percentage * 100).round()}%',
+                  overBudget
+                      ? '+${formatAmount(item.total - budget, currency)}'
+                      : '${formatAmount(item.total, currency)} / ${formatAmount(budget, currency)}',
                   style: GoogleFonts.instrumentSans(
-                    color: AppColors.gray400,
-                    fontSize: 11,
+                    color: overBudget ? AppColors.expense : AppColors.gray400,
+                    fontSize: 10,
+                    fontWeight: overBudget ? FontWeight.w600 : FontWeight.w400,
                   ),
                 ),
               ],
             ),
-          ),
-          const SizedBox(width: 12),
-          Text(
-            formatAmount(item.total, currency),
-            style: GoogleFonts.ibmPlexMono(
-              color: AppColors.gray900,
-              fontSize: 13,
-              fontWeight: FontWeight.w500,
-            ),
-          ),
+          ],
         ],
       ),
     );

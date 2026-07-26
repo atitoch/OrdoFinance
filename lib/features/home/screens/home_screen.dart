@@ -16,7 +16,6 @@ import '../../../shared/widgets/section_label.dart';
 import '../../../shared/widgets/transaction_row.dart';
 import '../../accounts/providers/accounts_provider.dart';
 import '../../categories/providers/categories_provider.dart';
-import '../../settings/providers/settings_provider.dart';
 import '../../transactions/providers/transactions_provider.dart';
 
 class HomeScreen extends ConsumerWidget {
@@ -30,8 +29,7 @@ class HomeScreen extends ConsumerWidget {
     final accounts = ref.watch(accountsListProvider);
     final categories = ref.watch(categoriesListProvider);
     final transactions = ref.watch(transactionsListProvider);
-    final currency =
-        accounts.firstOrNull?.currency ?? ref.watch(defaultCurrencyProvider);
+    final currency = accounts.firstOrNull?.currency ?? 'USD';
     final netWorth = ref.watch(netWorthProvider);
     final now = DateTime.now();
     final currentMonth = transactions.where(
@@ -241,7 +239,7 @@ class _AccountCard extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final color = parseCategoryColor(account.color ?? '#18181B');
     final balance = ref.watch(currentBalanceProvider(account.id));
-    final isNegative = accountBalanceIsNegative(balance, account.type);
+    final isCredit = account.type == AccountType.credit;
     return Container(
       width: 168,
       padding: const EdgeInsets.all(16),
@@ -269,9 +267,11 @@ class _AccountCard extends ConsumerWidget {
           ),
           const SizedBox(height: 4),
           Text(
-            formatAccountBalance(balance, account.currency, account.type),
+            isCredit
+                ? (balance > 0 ? '-${formatAmount(balance, account.currency)}' : formatAmount(balance.abs(), account.currency))
+                : formatAmount(balance, account.currency),
             style: GoogleFonts.ibmPlexMono(
-              color: isNegative ? AppColors.expense : AppColors.gray900,
+              color: isCredit && balance > 0 ? AppColors.expense : AppColors.gray900,
               fontSize: 15,
               fontWeight: FontWeight.w600,
             ),
@@ -297,6 +297,7 @@ class _MonthSummaryBar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final savingsRate = income > 0 ? ((income - expense) / income * 100).clamp(-999.0, 999.0) : null;
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
@@ -304,34 +305,94 @@ class _MonthSummaryBar extends StatelessWidget {
         border: Border.all(color: AppColors.gray200),
         borderRadius: BorderRadius.circular(AppSpacing.radiusLg),
       ),
-      child: Row(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Expanded(
-            child: _Metric(
-              label: 'Ingresos',
-              amount: income,
-              currency: currency,
-              color: AppColors.income,
-            ),
+          Row(
+            children: [
+              Expanded(
+                child: _Metric(
+                  label: 'Ingresos',
+                  amount: income,
+                  currency: currency,
+                  color: AppColors.income,
+                ),
+              ),
+              Expanded(
+                child: _Metric(
+                  label: 'Gastos',
+                  amount: expense,
+                  currency: currency,
+                  color: AppColors.expense,
+                ),
+              ),
+              Expanded(
+                child: _Metric(
+                  label: 'Balance',
+                  amount: net,
+                  currency: currency,
+                  color: net >= 0 ? AppColors.income : AppColors.expense,
+                ),
+              ),
+            ],
           ),
-          Expanded(
-            child: _Metric(
-              label: 'Gastos',
-              amount: expense,
-              currency: currency,
-              color: AppColors.expense,
-            ),
-          ),
-          Expanded(
-            child: _Metric(
-              label: 'Balance',
-              amount: net,
-              currency: currency,
-              color: net >= 0 ? AppColors.income : AppColors.expense,
-            ),
-          ),
+          if (savingsRate != null) ...[
+            const SizedBox(height: 12),
+            const Divider(height: 1, color: AppColors.gray100),
+            const SizedBox(height: 10),
+            _SavingsRateBar(rate: savingsRate),
+          ],
         ],
       ),
+    );
+  }
+}
+
+class _SavingsRateBar extends StatelessWidget {
+  const _SavingsRateBar({required this.rate});
+
+  final double rate;
+
+  @override
+  Widget build(BuildContext context) {
+    final isPositive = rate >= 0;
+    final color = isPositive ? AppColors.income : AppColors.expense;
+    final fill = (rate.abs() / 100).clamp(0.0, 1.0);
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Text(
+              'Tasa de ahorro',
+              style: GoogleFonts.instrumentSans(
+                color: AppColors.gray500,
+                fontSize: 11,
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+            Text(
+              '${isPositive ? '+' : ''}${rate.toStringAsFixed(1)}%',
+              style: GoogleFonts.ibmPlexMono(
+                color: color,
+                fontSize: 12,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 5),
+        ClipRRect(
+          borderRadius: BorderRadius.circular(2),
+          child: LinearProgressIndicator(
+            value: fill,
+            minHeight: 3,
+            color: color,
+            backgroundColor: AppColors.gray100,
+          ),
+        ),
+      ],
     );
   }
 }
@@ -364,7 +425,7 @@ class _Metric extends StatelessWidget {
         ),
         const SizedBox(height: 4),
         Text(
-          formatSignedAmount(amount, currency),
+          formatAmount(amount.abs(), currency),
           style: GoogleFonts.ibmPlexMono(
             color: color,
             fontSize: 14,
