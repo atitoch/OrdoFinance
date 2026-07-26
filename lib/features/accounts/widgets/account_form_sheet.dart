@@ -44,7 +44,7 @@ class _AccountFormSheetState extends ConsumerState<AccountFormSheet> {
     _nameController = TextEditingController(text: account?.name ?? '');
     // El campo dice "saldo actual", así que tiene que mostrar el saldo con los
     // movimientos ya aplicados, no el saldo inicial guardado en la cuenta.
-    final currentBalance = account == null
+    final int currentBalance = account == null
         ? 0
         : account.balance + ref.read(computedBalanceProvider(account.id));
     _balanceController = TextEditingController(

@@ -48,7 +48,7 @@ class _StatsScreenState extends ConsumerState<StatsScreen> {
         .toList();
     final income = _sum(monthTransactions, TransactionType.income);
     final expense = _sum(monthTransactions, TransactionType.expense);
-    final currency =
+    final String currency =
         monthTransactions.firstOrNull?.currency ??
         ref.watch(defaultCurrencyProvider);
     final breakdown = _buildBreakdown(monthTransactions, categories);

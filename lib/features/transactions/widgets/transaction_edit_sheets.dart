@@ -407,7 +407,7 @@ class _AddTransactionSheetState extends ConsumerState<AddTransactionSheet> {
         .where((account) => account.isActive)
         .toList();
     _accountId ??= accounts.firstOrNull?.id;
-    final currency =
+    final String currency =
         accounts.firstWhereOrNull((a) => a.id == _accountId)?.currency ??
         ref.watch(defaultCurrencyProvider);
     final amountCents = _amountToCents(_amount);

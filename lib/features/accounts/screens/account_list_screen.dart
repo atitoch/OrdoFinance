@@ -26,7 +26,7 @@ class AccountListScreen extends ConsumerWidget {
     final activeAccounts = accounts
         .where((account) => account.isActive)
         .toList();
-    final currency =
+    final String currency =
         activeAccounts.firstOrNull?.currency ??
         ref.watch(defaultCurrencyProvider);
     final total = activeAccounts.fold<int>(0, (sum, account) {
