@@ -28,13 +28,13 @@ String formatAmount(int cents, String currency) {
 /// Formatea el saldo de una cuenta teniendo en cuenta que en las tarjetas de
 /// crédito el saldo representa deuda y se muestra en negativo.
 ///
-/// Sólo antepone el signo cuando realmente hay deuda: con saldo 0 o con la
-/// tarjeta sobrepagada produciría `-$0.00` o `--$50.00`.
+/// Sólo antepone el signo cuando realmente hay deuda: con saldo 0 produciría
+/// `-$0.00` y con la tarjeta sobrepagada `--$50.00`. Una tarjeta sobrepagada
+/// tiene saldo a favor, así que se muestra en positivo.
 String formatAccountBalance(int balance, String currency, AccountType type) {
-  final isDebt = type == AccountType.credit && balance > 0;
-  return isDebt
-      ? '-${formatAmount(balance, currency)}'
-      : formatAmount(balance, currency);
+  if (type != AccountType.credit) return formatAmount(balance, currency);
+  if (balance > 0) return '-${formatAmount(balance, currency)}';
+  return formatAmount(balance.abs(), currency);
 }
 
 /// `true` cuando el saldo debe pintarse en rojo: deuda en tarjetas de crédito

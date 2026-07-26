@@ -3,10 +3,10 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:intl/intl.dart';
 
 import '../../../core/theme/app_colors.dart';
 import '../../../core/utils/currency_formatter.dart';
+import '../../../core/utils/date_formatter.dart';
 import '../../../data/models/account.dart';
 import '../../../data/models/category.dart';
 import '../../../data/models/transaction.dart';
@@ -17,6 +17,7 @@ import '../../../shared/widgets/ordo_button.dart';
 import '../../../shared/widgets/type_badge.dart';
 import '../../accounts/providers/accounts_provider.dart';
 import '../../categories/providers/categories_provider.dart';
+import '../../settings/providers/settings_provider.dart';
 import '../providers/transactions_provider.dart';
 import '../widgets/transaction_edit_sheets.dart';
 
@@ -107,6 +108,7 @@ class _TransactionDetailScreenState
     final category = categories.firstWhereOrNull(
       (item) => item.id == transaction.categoryId,
     );
+    final dateFormats = ref.watch(dateFormatsProvider);
 
     return Scaffold(
       backgroundColor: AppColors.gray50,
@@ -129,6 +131,7 @@ class _TransactionDetailScreenState
                       : _ViewHero(
                           key: const ValueKey('view'),
                           transaction: transaction,
+                          dateFormats: dateFormats,
                         ),
                 ),
                 const Divider(height: 1, color: AppColors.gray200),
@@ -140,12 +143,14 @@ class _TransactionDetailScreenState
                           accounts: accounts,
                           categories: categories,
                           transaction: transaction,
+                          dateFormats: dateFormats,
                         )
                       : _ViewRows(
                           transaction: transaction,
                           account: account,
                           toAccount: toAccount,
                           category: category,
+                          dateFormats: dateFormats,
                           onEditNote: _enterEditMode,
                           onEditTags: _enterEditMode,
                           onCopyId: _copyId,
@@ -174,10 +179,6 @@ class _TransactionDetailScreenState
         IconButton(
           icon: const Icon(Icons.edit_outlined, color: AppColors.gray900),
           onPressed: _enterEditMode,
-        ),
-        IconButton(
-          icon: const Icon(Icons.more_vert, color: AppColors.gray900),
-          onPressed: () {},
         ),
       ],
     );
@@ -292,7 +293,7 @@ class _TransactionDetailScreenState
       currency: transaction.currency,
       accountId: _accountId ?? transaction.accountId,
       toAccountId: _type == TransactionType.transfer ? _toAccountId : null,
-      categoryId: _categoryId,
+      categoryId: _type == TransactionType.transfer ? null : _categoryId,
       description: _descriptionController.text.trim(),
       note: _noteController.text.trim().isEmpty
           ? null
@@ -348,16 +349,22 @@ class _TransactionDetailScreenState
     context.pop();
     messenger.showSnackBar(
       SnackBar(
-        content: const Text('Movimiento eliminado'),
+        content: Text(
+          deleted == null
+              ? 'No se pudo eliminar el movimiento'
+              : 'Movimiento eliminado',
+        ),
         duration: const Duration(seconds: 5),
-        action: SnackBarAction(
-          label: 'Deshacer',
-          onPressed: deleted == null
-              ? () {}
-              : () => ref
+        // Sin transacción devuelta no hay nada que restaurar: antes se
+        // mostraba igual un botón "Deshacer" que no hacía nada.
+        action: deleted == null
+            ? null
+            : SnackBarAction(
+                label: 'Deshacer',
+                onPressed: () => ref
                     .read(transactionsProvider.notifier)
                     .restoreTransaction(deleted),
-        ),
+              ),
       ),
     );
   }
@@ -484,9 +491,14 @@ class _TransactionDetailScreenState
 }
 
 class _ViewHero extends StatelessWidget {
-  const _ViewHero({required this.transaction, super.key});
+  const _ViewHero({
+    required this.transaction,
+    required this.dateFormats,
+    super.key,
+  });
 
   final Transaction transaction;
+  final AppDateFormats dateFormats;
 
   @override
   Widget build(BuildContext context) {
@@ -523,7 +535,7 @@ class _ViewHero extends StatelessWidget {
           const SizedBox(height: 10),
           Center(
             child: Text(
-              DateFormat('EEEE, MMMM d, y · HH:mm').format(transaction.date),
+              dateFormats.weekdayDateTime(transaction.date),
               style: GoogleFonts.ibmPlexMono(
                 color: AppColors.gray500,
                 fontSize: 13,
@@ -640,6 +652,7 @@ class _ViewRows extends StatelessWidget {
     required this.account,
     required this.toAccount,
     required this.category,
+    required this.dateFormats,
     required this.onEditNote,
     required this.onEditTags,
     required this.onCopyId,
@@ -649,6 +662,7 @@ class _ViewRows extends StatelessWidget {
   final Account? account;
   final Account? toAccount;
   final Category? category;
+  final AppDateFormats dateFormats;
   final VoidCallback onEditNote;
   final VoidCallback onEditTags;
   final ValueChanged<String> onCopyId;
@@ -659,9 +673,11 @@ class _ViewRows extends StatelessWidget {
       if (transaction.type == TransactionType.transfer) ...[
         _DetailRow(label: 'ORIGEN', value: account?.name ?? '-'),
         _DetailRow(label: 'DESTINO', value: toAccount?.name ?? '-'),
-      ] else
+      ] else ...[
         _DetailRow(label: 'CUENTA', value: account?.name ?? '-'),
-      _DetailRow(label: 'CATEGORÍA', value: category?.name ?? '-'),
+        // Las transferencias no llevan categoría: la fila salía siempre "-".
+        _DetailRow(label: 'CATEGORÍA', value: category?.name ?? '-'),
+      ],
       _DetailRow(
         label: 'NOTA',
         valueWidget: transaction.note == null || transaction.note!.isEmpty
@@ -684,7 +700,7 @@ class _ViewRows extends StatelessWidget {
       ),
       _DetailRow(
         label: 'FECHA',
-        value: DateFormat('MMM d, y · HH:mm').format(transaction.date),
+        value: dateFormats.dateTime(transaction.date),
       ),
       _DetailRow(
         label: 'ID',
@@ -708,12 +724,14 @@ class _EditRows extends StatelessWidget {
     required this.accounts,
     required this.categories,
     required this.transaction,
+    required this.dateFormats,
   });
 
   final _TransactionDetailScreenState state;
   final List<Account> accounts;
   final List<Category> categories;
   final Transaction transaction;
+  final AppDateFormats dateFormats;
 
   @override
   Widget build(BuildContext context) {
@@ -749,19 +767,22 @@ class _EditRows extends StatelessWidget {
               onChanged: state.setToAccountId,
             ),
           ),
-        _DetailRow(
-          label: 'CATEGORÍA',
-          valueWidget: InkWell(
-            onTap: state.pickCategory,
-            child: Text(
-              state._categoryError ?? category?.name ?? 'Selecciona una categoría',
-              textAlign: TextAlign.right,
-              style: state._categoryError == null
-                  ? _valueStyle
-                  : _valueStyle.copyWith(color: AppColors.expense),
+        if (state._type != TransactionType.transfer)
+          _DetailRow(
+            label: 'CATEGORÍA',
+            valueWidget: InkWell(
+              onTap: state.pickCategory,
+              child: Text(
+                state._categoryError ??
+                    category?.name ??
+                    'Selecciona una categoría',
+                textAlign: TextAlign.right,
+                style: state._categoryError == null
+                    ? _valueStyle
+                    : _valueStyle.copyWith(color: AppColors.expense),
+              ),
             ),
           ),
-        ),
         Padding(
           padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
           child: TextFormField(
@@ -787,7 +808,7 @@ class _EditRows extends StatelessWidget {
           valueWidget: InkWell(
             onTap: state.pickDate,
             child: Text(
-              DateFormat('MMM d, y · HH:mm').format(state._date),
+              dateFormats.dateTime(state._date),
               textAlign: TextAlign.right,
               style: _valueStyle,
             ),
@@ -796,7 +817,7 @@ class _EditRows extends StatelessWidget {
         _DetailRow(label: 'ID', value: transaction.id),
         _DetailRow(
           label: 'CREADO',
-          value: DateFormat('MMM d, y · HH:mm').format(transaction.createdAt),
+          value: dateFormats.dateTime(transaction.createdAt),
         ),
       ],
     );
@@ -995,7 +1016,7 @@ class _DeleteConfirmationSheet extends StatelessWidget {
             ),
             const SizedBox(height: 8),
             Text(
-              'Esta acción no se puede deshacer.',
+              'Podrás deshacerlo desde el aviso que aparece al eliminarlo.',
               style: GoogleFonts.instrumentSans(
                 color: AppColors.gray500,
                 fontSize: 13,
