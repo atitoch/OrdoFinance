@@ -79,7 +79,7 @@ class _BatchReviewSheetState extends ConsumerState<BatchReviewSheet> {
         .toList();
     final existing = ref.watch(transactionsListProvider);
     final dateFormats = ref.watch(dateFormatsProvider);
-    final currency =
+    final String currency =
         accounts.firstWhereOrNull((a) => a.id == _accountId)?.currency ??
         ref.watch(defaultCurrencyProvider);
 
@@ -187,7 +187,7 @@ class _BatchReviewSheetState extends ConsumerState<BatchReviewSheet> {
     if (accountId == null || _isSaving) return;
 
     final accounts = ref.read(accountsListProvider);
-    final currency =
+    final String currency =
         accounts.firstWhereOrNull((a) => a.id == accountId)?.currency ??
         ref.read(defaultCurrencyProvider);
     final now = DateTime.now();
