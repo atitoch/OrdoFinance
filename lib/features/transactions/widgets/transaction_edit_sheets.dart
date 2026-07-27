@@ -21,6 +21,7 @@ import '../../accounts/providers/accounts_provider.dart';
 import '../../categories/providers/categories_provider.dart';
 import '../../settings/providers/settings_provider.dart';
 import '../providers/transactions_provider.dart';
+import 'batch_review_sheet.dart';
 
 Future<String?> showAmountNumpadSheet(
   BuildContext context,
@@ -692,14 +693,26 @@ class _AddTransactionSheetState extends ConsumerState<AddTransactionSheet> {
 
   Future<void> _openAiSheet() async {
     final categories = ref.read(categoriesListProvider);
-    final result = await showModalBottomSheet<ParsedTransaction>(
+    final result = await showModalBottomSheet<List<ParsedTransaction>>(
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
       builder: (context) => _AiInputSheet(categories: categories),
     );
-    if (result != null && mounted) {
-      _applyParsed(result, categories);
+    if (result == null || result.isEmpty || !mounted) return;
+
+    // Un solo movimiento rellena este formulario, como siempre. Varios (una
+    // captura del listado del banco) van a la pantalla de revisión.
+    if (result.length == 1) {
+      _applyParsed(result.first, categories);
+      return;
+    }
+
+    final saved = await showBatchReviewSheet(context, result);
+    if ((saved ?? false) && mounted) {
+      // Los movimientos ya se guardaron desde la revisión: esta hoja de alta
+      // sobra.
+      Navigator.of(context).pop();
     }
   }
 
@@ -961,7 +974,8 @@ class _AiInputSheetState extends State<_AiInputSheet> {
                 ),
                 decoration: InputDecoration(
                   hintText:
-                      'Describe el movimiento...\n"Gasté \$350 en Uber" o "Cobré \$5000 de cliente X"',
+                      'Describe el movimiento o sube una captura del listado '
+                      'de tu banco.\n"Gasté \$350 en Uber"',
                   hintStyle: GoogleFonts.instrumentSans(
                     fontSize: 13,
                     color: AppColors.gray400,
@@ -1068,7 +1082,7 @@ class _AiInputSheetState extends State<_AiInputSheet> {
       final service = GeminiService();
       final categoryNames =
           widget.categories.map((c) => c.name).toList();
-      ParsedTransaction? result;
+      final List<ParsedTransaction> result;
       if (_imageBytes != null) {
         result = await service.parseFromImage(
           _imageBytes!,
@@ -1078,13 +1092,13 @@ class _AiInputSheetState extends State<_AiInputSheet> {
       } else {
         result = await service.parseFromText(text, categoryNames);
       }
-      if (result == null) {
+      if (result.isEmpty) {
         // La respuesta llegó pero no se pudo interpretar: la API key no tiene
         // nada que ver, culparla mandaba a revisar Ajustes sin motivo.
         setState(
           () => _error =
-              'Gemini respondió algo que no se pudo interpretar. '
-              'Reformula el texto o inténtalo de nuevo.',
+              'No se reconoció ningún movimiento. Si es una captura, '
+              'revisa que se lea bien; si es texto, reformúlalo.',
         );
         return;
       }

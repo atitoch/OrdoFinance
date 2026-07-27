@@ -78,6 +78,34 @@ class TransactionsNotifier extends StateNotifier<ResourceState<Transaction>> {
     }
   }
 
+  /// Alta de varios movimientos de una sola vez (importación de una captura).
+  /// Se publica un único estado en vez de uno por movimiento, para no
+  /// reconstruir toda la app N veces.
+  Future<void> addTransactions(List<Transaction> transactions) async {
+    if (transactions.isEmpty) return;
+    final previous = state;
+    state = state.copyWith(
+      items: [...state.items, ...transactions],
+      isSyncing: true,
+      clearError: true,
+    );
+    try {
+      final created = <Transaction>[];
+      for (final transaction in transactions) {
+        created.add(await _repository.create(transaction));
+      }
+      final byId = {for (final item in created) item.id: item};
+      state = state.copyWith(
+        items: [
+          for (final item in state.items) byId[item.id] ?? item,
+        ],
+        isSyncing: false,
+      );
+    } catch (error) {
+      state = previous.copyWith(error: error);
+    }
+  }
+
   Future<void> updateTransaction(Transaction transaction) async {
     final previous = state;
     state = state.copyWith(

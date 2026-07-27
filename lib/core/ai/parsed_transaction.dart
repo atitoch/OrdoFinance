@@ -30,4 +30,29 @@ class ParsedTransaction {
       note: json['note'] as String?,
     );
   }
+
+  /// Lee la respuesta del modelo en cualquiera de las formas que puede tomar:
+  /// `{"movements": [...]}`, un array suelto, o un único objeto (que es lo que
+  /// devolvía antes de admitir varios movimientos por captura).
+  static List<ParsedTransaction> listFromJson(Object? decoded) {
+    final raw = switch (decoded) {
+      final Map<String, dynamic> map when map['movements'] is List =>
+        map['movements'] as List<dynamic>,
+      final List<dynamic> list => list,
+      final Map<String, dynamic> map => [map],
+      _ => const <dynamic>[],
+    };
+
+    final items = <ParsedTransaction>[];
+    for (final entry in raw) {
+      if (entry is! Map) continue;
+      try {
+        items.add(ParsedTransaction.fromJson(Map<String, dynamic>.from(entry)));
+      } catch (_) {
+        // Una fila ilegible no debe tirar el resto de la captura.
+        continue;
+      }
+    }
+    return items;
+  }
 }

@@ -48,7 +48,9 @@ class GeminiService {
   static Future<void> saveApiKey(String key) =>
       _storage.write(key: _apiKeyName, value: key);
 
-  Future<ParsedTransaction?> parseFromText(
+  /// Una captura del listado del banco puede traer varios movimientos, así que
+  /// siempre se devuelve una lista: con una frase suelta trae uno solo.
+  Future<List<ParsedTransaction>> parseFromText(
     String text,
     List<String> categoryNames,
   ) =>
@@ -56,7 +58,7 @@ class GeminiService {
         {'text': '${_prompt(categoryNames)}\n\nInput: $text'},
       ]);
 
-  Future<ParsedTransaction?> parseFromImage(
+  Future<List<ParsedTransaction>> parseFromImage(
     Uint8List bytes,
     String mimeType,
     List<String> categoryNames,
@@ -71,7 +73,7 @@ class GeminiService {
         },
       ]);
 
-  Future<ParsedTransaction?> _call(
+  Future<List<ParsedTransaction>> _call(
     List<Map<String, dynamic>> parts,
   ) async {
     final key = await getApiKey();
@@ -92,7 +94,12 @@ class GeminiService {
           'contents': [
             {'parts': parts},
           ],
-          'generationConfig': {'responseMimeType': 'application/json'},
+          'generationConfig': {
+            'responseMimeType': 'application/json',
+            // Con esquema, la estructura viene garantizada en lugar de
+            // depender de que el modelo respete el formato del prompt.
+            'responseSchema': _responseSchema,
+          },
         },
       );
     } on DioException catch (error) {
@@ -102,13 +109,36 @@ class GeminiService {
     try {
       final text =
           res.data['candidates'][0]['content']['parts'][0]['text'] as String;
-      return ParsedTransaction.fromJson(
-        jsonDecode(text) as Map<String, dynamic>,
-      );
+      return ParsedTransaction.listFromJson(jsonDecode(text));
     } catch (_) {
-      return null;
+      return const [];
     }
   }
+
+  static const _responseSchema = {
+    'type': 'OBJECT',
+    'properties': {
+      'movements': {
+        'type': 'ARRAY',
+        'items': {
+          'type': 'OBJECT',
+          'properties': {
+            'type': {
+              'type': 'STRING',
+              'enum': ['expense', 'income', 'transfer'],
+            },
+            'amount': {'type': 'NUMBER'},
+            'description': {'type': 'STRING'},
+            'categoryName': {'type': 'STRING', 'nullable': true},
+            'date': {'type': 'STRING', 'nullable': true},
+            'note': {'type': 'STRING', 'nullable': true},
+          },
+          'required': ['type', 'amount', 'description'],
+        },
+      },
+    },
+    'required': ['movements'],
+  };
 
   /// Traduce el fallo de red a algo accionable. Dio imprime su propio texto
   /// para cada código HTTP y para el 429 dice "the request contains bad
@@ -186,15 +216,29 @@ class GeminiService {
     final cats = categoryNames.isEmpty
         ? 'ninguna disponible'
         : categoryNames.join(', ');
+    final today = DateTime.now().toIso8601String().split('T').first;
     return '''
-Eres un parser de movimientos financieros. Extrae datos del input (texto libre o imagen de ticket/recibo) y devuelve SOLO un JSON con estos campos:
-- type: "expense", "income" o "transfer"
-- amount: número con hasta 2 decimales (ej: 350.50)
-- description: descripción corta, máximo 80 caracteres
+Eres un parser de movimientos financieros. El input puede ser texto libre, la
+foto de un ticket, o una captura del listado de movimientos de una app
+bancaria. Devuelve un JSON con la lista "movements".
+
+Extrae TODOS los movimientos que veas, uno por cada renglón del listado. Si el
+input describe una sola operación, devuelve un único elemento.
+
+Campos de cada movimiento:
+- type: "expense" para cargos y compras, "income" para abonos y depósitos,
+  "transfer" sólo si es un traspaso entre cuentas propias
+- amount: número positivo con hasta 2 decimales (ej: 350.50), sin signo ni
+  símbolo de moneda
+- description: el comercio o concepto, máximo 80 caracteres
 - categoryName: una de [$cats] que mejor aplique, o null si ninguna encaja
-- date: fecha ISO YYYY-MM-DD si se menciona claramente, o null
+- date: fecha ISO YYYY-MM-DD. Hoy es $today; si el renglón sólo trae día y mes,
+  usa el año que haga que la fecha no quede en el futuro. Si no hay fecha, null
 - note: detalle adicional útil, o null
 
-Solo el objeto JSON, sin markdown ni explicación.''';
+Reglas:
+- No inventes movimientos que no aparezcan en el input.
+- Ignora saldos, totales, encabezados y filas de resumen: sólo movimientos.
+- Respeta el orden en el que aparecen.''';
   }
 }
