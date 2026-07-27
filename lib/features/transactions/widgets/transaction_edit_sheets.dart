@@ -1079,15 +1079,22 @@ class _AiInputSheetState extends State<_AiInputSheet> {
         result = await service.parseFromText(text, categoryNames);
       }
       if (result == null) {
+        // La respuesta llegó pero no se pudo interpretar: la API key no tiene
+        // nada que ver, culparla mandaba a revisar Ajustes sin motivo.
         setState(
           () => _error =
-              'No se pudo analizar. Revisa tu API key en Ajustes → Inteligencia Artificial.',
+              'Gemini respondió algo que no se pudo interpretar. '
+              'Reformula el texto o inténtalo de nuevo.',
         );
         return;
       }
       if (mounted) Navigator.of(context).pop(result);
-    } catch (e) {
-      if (mounted) setState(() => _error = 'Error al conectar con Gemini: $e');
+    } on GeminiException catch (error) {
+      if (mounted) setState(() => _error = error.message);
+    } catch (_) {
+      if (mounted) {
+        setState(() => _error = 'No se pudo conectar con Gemini.');
+      }
     } finally {
       if (mounted) setState(() => _loading = false);
     }
