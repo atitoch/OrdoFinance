@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:intl/intl.dart';
 import 'package:ulid/ulid.dart';
 
 import '../../../core/theme/app_colors.dart';
@@ -11,6 +12,7 @@ import '../../../shared/widgets/category_icon.dart';
 import '../../../shared/widgets/ordo_button.dart';
 import '../../../shared/widgets/ordo_text_field.dart';
 import '../../settings/providers/settings_provider.dart';
+import '../../transactions/providers/transactions_provider.dart';
 import '../providers/accounts_provider.dart';
 
 class AccountFormSheet extends ConsumerStatefulWidget {
@@ -29,6 +31,7 @@ class _AccountFormSheetState extends ConsumerState<AccountFormSheet> {
   late String _currency;
   late String _color;
   int? _cutDay;
+  late DateTime _balanceAsOf;
   bool _isSubmitting = false;
   String? _nameError;
   String? _balanceError;
@@ -44,6 +47,9 @@ class _AccountFormSheetState extends ConsumerState<AccountFormSheet> {
     _nameController = TextEditingController(text: account?.name ?? '');
     // El campo dice "saldo actual", así que tiene que mostrar el saldo con los
     // movimientos ya aplicados, no el saldo inicial guardado en la cuenta.
+    _balanceAsOf = account == null
+        ? DateTime.now()
+        : (account.balanceAsOf ?? account.createdAt);
     final int currentBalance = account == null
         ? 0
         : account.balance + ref.read(computedBalanceProvider(account.id));
@@ -155,15 +161,19 @@ class _AccountFormSheetState extends ConsumerState<AccountFormSheet> {
                       inputFormatters: [SingleDecimalInputFormatter()],
                       onChanged: (_) => setState(() => _balanceError = null),
                       helperText: _type == AccountType.credit
-                          ? 'Ingresa cuánto debes actualmente en esta tarjeta.'
-                          : _isEditing
-                          ? 'Ajusta el saldo actual; tus movimientos se conservan.'
-                          : 'Ingresa tu saldo actual para comenzar a registrar desde hoy.',
+                          ? 'Cuánto debes en esta tarjeta a la fecha de abajo.'
+                          : 'Cuánto tienes en esta cuenta a la fecha de abajo.',
                       textStyle: GoogleFonts.ibmPlexMono(
                         color: AppColors.gray900,
                         fontSize: 14,
                         fontWeight: FontWeight.w400,
                       ),
+                    ),
+                    const SizedBox(height: 16),
+                    _BalanceDatePicker(
+                      isCredit: _type == AccountType.credit,
+                      date: _balanceAsOf,
+                      onTap: _pickBalanceDate,
                     ),
                     if (_type == AccountType.credit) ...[
                       const SizedBox(height: 16),
@@ -248,9 +258,20 @@ class _AccountFormSheetState extends ConsumerState<AccountFormSheet> {
       // Lo que se captura es el saldo actual; el modelo guarda el saldo
       // inicial, así que hay que descontarle el efecto de los movimientos.
       final enteredCents = parseAmountToCents(_balanceController.text) ?? 0;
+      // El delta se recalcula con la fecha elegida ahora, que puede no ser la
+      // guardada: el provider usaría la vieja.
       final movements = existing == null
           ? 0
-          : ref.read(computedBalanceProvider(existing.id));
+          : computeBalanceDelta(
+              transactions: ref.read(transactionsListProvider),
+              accountId: existing.id,
+              isCredit: _type == AccountType.credit,
+              cutoff: DateTime(
+                _balanceAsOf.year,
+                _balanceAsOf.month,
+                _balanceAsOf.day,
+              ),
+            );
       final account = Account(
         id: existing?.id ?? Ulid().toString(),
         name: _nameController.text.trim(),
@@ -262,6 +283,7 @@ class _AccountFormSheetState extends ConsumerState<AccountFormSheet> {
         isActive: existing?.isActive ?? true,
         createdAt: existing?.createdAt ?? DateTime.now(),
         cutDay: _type == AccountType.credit ? _cutDay : null,
+        balanceAsOf: _balanceAsOf,
       );
       final notifier = ref.read(accountsProvider.notifier);
       if (_isEditing) {
@@ -295,11 +317,95 @@ class _AccountFormSheetState extends ConsumerState<AccountFormSheet> {
     return _nameError == null && _balanceError == null;
   }
 
+  Future<void> _pickBalanceDate() async {
+    final now = DateTime.now();
+    final picked = await showDatePicker(
+      context: context,
+      initialDate: _balanceAsOf.isAfter(now) ? now : _balanceAsOf,
+      firstDate: DateTime(2000),
+      lastDate: now,
+    );
+    if (picked != null) setState(() => _balanceAsOf = picked);
+  }
+
   Future<void> _archive() async {
     final account = widget.account;
     if (account == null) return;
     await ref.read(accountsProvider.notifier).archiveAccount(account.id);
     if (mounted) Navigator.of(context).pop();
+  }
+}
+
+/// Fecha a la que corresponde el saldo capturado. Lo anterior a ella no vuelve
+/// a sumarse, así que se puede importar el histórico sin descuadrar la cuenta.
+class _BalanceDatePicker extends StatelessWidget {
+  const _BalanceDatePicker({
+    required this.isCredit,
+    required this.date,
+    required this.onTap,
+  });
+
+  final bool isCredit;
+  final DateTime date;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          isCredit ? 'DEUDA A FECHA' : 'SALDO A FECHA',
+          style: GoogleFonts.instrumentSans(
+            color: AppColors.gray400,
+            fontSize: 11,
+            fontWeight: FontWeight.w500,
+            letterSpacing: 0.66,
+          ),
+        ),
+        const SizedBox(height: 8),
+        InkWell(
+          onTap: onTap,
+          borderRadius: BorderRadius.circular(8),
+          child: Container(
+            height: 48,
+            padding: const EdgeInsets.symmetric(horizontal: 12),
+            decoration: BoxDecoration(
+              border: Border.all(color: AppColors.gray200),
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: Row(
+              children: [
+                const Icon(
+                  Icons.event_outlined,
+                  size: 18,
+                  color: AppColors.gray400,
+                ),
+                const SizedBox(width: 10),
+                Text(
+                  DateFormat.yMMMMd().format(date),
+                  style: GoogleFonts.instrumentSans(
+                    color: AppColors.gray900,
+                    fontSize: 14,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+        Padding(
+          padding: const EdgeInsets.only(top: 6),
+          child: Text(
+            'Solo se cuentan los movimientos desde esta fecha. Los anteriores '
+            'ya están incluidos en el saldo.',
+            style: GoogleFonts.instrumentSans(
+              color: AppColors.gray400,
+              fontSize: 11,
+            ),
+          ),
+        ),
+      ],
+    );
   }
 }
 

@@ -21,14 +21,28 @@ final accountsListProvider = Provider<List<Account>>((ref) {
   return ref.watch(accountsProvider).items;
 });
 
-final computedBalanceProvider = Provider.autoDispose.family<int, String>((ref, accountId) {
-  final accounts = ref.watch(accountsListProvider);
-  final isCredit =
-      accounts.where((a) => a.id == accountId).firstOrNull?.type ==
-      AccountType.credit;
-  final transactions = ref.watch(transactionsListProvider);
+/// Fecha desde la que los movimientos afectan al saldo de la cuenta. El saldo
+/// capturado corresponde a ese día, así que lo anterior ya está incluido en él.
+/// Las cuentas creadas antes de que existiera el campo usan su fecha de alta.
+DateTime balanceCutoffFor(Account account) {
+  final reference = account.balanceAsOf ?? account.createdAt;
+  // Se compara contra el inicio del día: lo que registres el mismo día que
+  // capturas el saldo debe contar, o parecería que la app ignora el gasto.
+  return DateTime(reference.year, reference.month, reference.day);
+}
+
+/// Efecto de los movimientos sobre el saldo de una cuenta a partir de
+/// [cutoff]. Función pura para poder probarla y reutilizarla desde el
+/// formulario, que necesita el cálculo con una fecha aún no guardada.
+int computeBalanceDelta({
+  required List<Transaction> transactions,
+  required String accountId,
+  required bool isCredit,
+  required DateTime cutoff,
+}) {
   var delta = 0;
   for (final tx in transactions) {
+    if (tx.date.isBefore(cutoff)) continue;
     switch (tx.type) {
       case TransactionType.income:
         if (tx.accountId == accountId) {
@@ -52,6 +66,18 @@ final computedBalanceProvider = Provider.autoDispose.family<int, String>((ref, a
     }
   }
   return delta;
+}
+
+final computedBalanceProvider = Provider.autoDispose.family<int, String>((ref, accountId) {
+  final accounts = ref.watch(accountsListProvider);
+  final account = accounts.where((a) => a.id == accountId).firstOrNull;
+  if (account == null) return 0;
+  return computeBalanceDelta(
+    transactions: ref.watch(transactionsListProvider),
+    accountId: accountId,
+    isCredit: account.type == AccountType.credit,
+    cutoff: balanceCutoffFor(account),
+  );
 });
 
 // Para crédito: deuda actual (positivo = cuánto debes)

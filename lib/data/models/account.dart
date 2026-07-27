@@ -43,6 +43,7 @@ class Account {
     this.color,
     this.icon,
     this.cutDay,
+    this.balanceAsOf,
   });
 
   @HiveField(0)
@@ -66,6 +67,12 @@ class Account {
   @HiveField(9)
   final int? cutDay;
 
+  /// Fecha a la que corresponde [balance]. Los movimientos anteriores ya están
+  /// incluidos en ese saldo, así que no vuelven a sumarse: sin esto, importar
+  /// el histórico de la cuenta descontaba dos veces lo mismo.
+  @HiveField(10)
+  final DateTime? balanceAsOf;
+
   factory Account.fromJson(Map<String, dynamic> json) {
     return Account(
       id: json['id'] as String,
@@ -78,6 +85,9 @@ class Account {
       isActive: json['isActive'] as bool,
       createdAt: DateTime.parse(json['createdAt'] as String),
       cutDay: json['cutDay'] as int?,
+      balanceAsOf: json['balanceAsOf'] == null
+          ? null
+          : DateTime.parse(json['balanceAsOf'] as String),
     );
   }
 
@@ -93,6 +103,7 @@ class Account {
       'isActive': isActive,
       'createdAt': createdAt.toIso8601String(),
       'cutDay': cutDay,
+      'balanceAsOf': balanceAsOf?.toIso8601String(),
     };
   }
 
@@ -107,6 +118,7 @@ class Account {
     bool? isActive,
     DateTime? createdAt,
     Object? cutDay = _sentinel,
+    DateTime? balanceAsOf,
   }) {
     return Account(
       id: id ?? this.id,
@@ -119,6 +131,7 @@ class Account {
       isActive: isActive ?? this.isActive,
       createdAt: createdAt ?? this.createdAt,
       cutDay: cutDay == _sentinel ? this.cutDay : cutDay as int?,
+      balanceAsOf: balanceAsOf ?? this.balanceAsOf,
     );
   }
 }
