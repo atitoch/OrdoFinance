@@ -30,8 +30,15 @@ class GeminiService {
 
   static const _storage = FlutterSecureStorage();
   static const _apiKeyName = 'gemini_api_key';
+  /// Modelo usado para interpretar los movimientos. Si Google retira su cuota
+  /// gratuita, la API responde 429 desde la primera consulta (no es un límite
+  /// consumido); cambiar aquí a otro modelo con nivel gratuito lo resuelve.
+  /// Los modelos disponibles para una key se consultan en
+  /// `GET /v1beta/models?key=…`.
+  static const model = 'gemini-2.0-flash';
+
   static const _endpoint =
-      'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent';
+      'https://generativelanguage.googleapis.com/v1beta/models/$model:generateContent';
 
   final Dio _dio;
 
@@ -118,9 +125,7 @@ class GeminiService {
 
     final status = error.response?.statusCode;
     return switch (status) {
-      429 =>
-        'Alcanzaste el límite de uso de Gemini. Espera unos minutos e '
-            'inténtalo otra vez, o revisa la cuota de tu cuenta.',
+      429 => _quotaMessage(error.response?.data),
       400 =>
         'Gemini rechazó la petición. Si acabas de pegar la API key, '
             'revisa que esté completa.',
@@ -133,6 +138,43 @@ class GeminiService {
         'Gemini no está disponible en este momento. Inténtalo más tarde.',
       _ => 'No se pudo conectar con Gemini${status == null ? '' : ' ($status)'}.',
     };
+  }
+
+  /// Un 429 puede ser "te pasaste de peticiones por minuto" o "este modelo
+  /// tiene cuota cero en tu plan", que se arreglan de formas distintas.
+  /// Google lo aclara en `error.details[].violations[].quotaId`.
+  String _quotaMessage(Object? body) {
+    final quotaId = _quotaId(body);
+    if (quotaId != null && quotaId.contains('PerMinute')) {
+      return 'Hiciste demasiadas consultas seguidas. Espera un minuto e '
+          'inténtalo otra vez.';
+    }
+    if (quotaId != null && quotaId.contains('PerDay')) {
+      return 'Agotaste la cuota diaria de Gemini. Se reinicia a medianoche '
+          '(hora del Pacífico).';
+    }
+    return 'Gemini rechazó la consulta por cuota agotada. Si es de tus '
+        'primeras consultas, el modelo no tiene cuota gratuita en tu '
+        'proyecto: revísalo en aistudio.google.com.';
+  }
+
+  String? _quotaId(Object? body) {
+    if (body is! Map) return null;
+    final error = body['error'];
+    if (error is! Map) return null;
+    final details = error['details'];
+    if (details is! List) return null;
+    for (final detail in details) {
+      if (detail is! Map) continue;
+      final violations = detail['violations'];
+      if (violations is! List) continue;
+      for (final violation in violations) {
+        if (violation is Map && violation['quotaId'] is String) {
+          return violation['quotaId'] as String;
+        }
+      }
+    }
+    return null;
   }
 
   String _prompt(List<String> categoryNames) {
