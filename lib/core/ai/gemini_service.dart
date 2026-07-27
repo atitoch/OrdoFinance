@@ -30,12 +30,14 @@ class GeminiService {
 
   static const _storage = FlutterSecureStorage();
   static const _apiKeyName = 'gemini_api_key';
-  /// Modelo usado para interpretar los movimientos. Si Google retira su cuota
-  /// gratuita, la API responde 429 desde la primera consulta (no es un límite
-  /// consumido); cambiar aquí a otro modelo con nivel gratuito lo resuelve.
-  /// Los modelos disponibles para una key se consultan en
-  /// `GET /v1beta/models?key=…`.
-  static const model = 'gemini-2.0-flash';
+  /// Modelo usado para interpretar los movimientos.
+  ///
+  /// Google va retirando la cuota gratuita de los modelos viejos: cuando eso
+  /// pasa la API responde 429 desde la primera consulta, que parece un límite
+  /// consumido pero es cuota cero. Si vuelve a ocurrir, se cambia por el
+  /// modelo flash vigente; los disponibles para una key se listan en
+  /// `GET /v1beta/models`.
+  static const model = 'gemini-3.6-flash';
 
   static const _endpoint =
       'https://generativelanguage.googleapis.com/v1beta/models/$model:generateContent';
@@ -82,7 +84,10 @@ class GeminiService {
     final Response<dynamic> res;
     try {
       res = await _dio.post(
-        '$_endpoint?key=$key',
+        _endpoint,
+        // La key va en la cabecera, no como `?key=`: es la forma documentada
+        // y evita que quede escrita en logs y proxies.
+        options: Options(headers: {'x-goog-api-key': key}),
         data: {
           'contents': [
             {'parts': parts},
